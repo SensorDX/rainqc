@@ -43,7 +43,7 @@ def group_station_data(station_name, group_type='H', apply_fn=np.mean, year=None
     df['hour'] = df['rTime']//100
     f = merge_two_dicts({col:apply_fn for col in df.columns[2:28:2]},
                         {flag:np.max for flag in df.columns[3:29:2]})
-    f['RAIN'] = np.sum
+    f['RAIN'] = np.max
     if group_type=='H':
         grouped = df.groupby(['rDate','hour']).agg(f)
     elif group_type=='D':
@@ -209,14 +209,18 @@ class StationData:
 
 if __name__ == '__main__':
 
+
     # List of target stations
     target_stations = ['CLAY', 'OKCE', 'PRYO']
     obs_year = 2008
     response = ['RAIN']
     variables = ['TAIR', 'RELH', 'SRAD', 'WSPD', 'PRES']
 
+    #stn = StationData(target_stations[0], variables=variables, response=response,)
+    #X = stn.extract_features(year=obs_year, save=True)
+
     for t_station in target_stations:
-        stn = StationData(t_station, variables=variables, response=response)
+        stn = StationData(t_station, variables=variables, response=response , output_prefix="maxrain-")
         X = stn.extract_features(year=obs_year, save=True)
         print "{0:s} extracted".format(t_station)
 
