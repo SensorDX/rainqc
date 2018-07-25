@@ -1,12 +1,13 @@
 import numpy as np
 from sklearn.neighbors import KernelDensity
-from sklearn.linear_model import LinearRegression, HuberRegressor
-from sklearn.linear_model.logistic import LogisticRegression
-
+from sklearn.linear_model import LinearRegression, LogisticRegression
+import json
+import pickle
 class MixLinearModel(object):
+
     """
-    Mixture of linear model.
-     - 0/1 Hurdle model.
+        Mixture of linear model.
+        0/1 Hurdle model.
     """
 
     def __init__(self):
@@ -30,19 +31,30 @@ class MixLinearModel(object):
 
         zero_one = (y>0.5).astype(int)
         self.log_reg.fit(x, zero_one)
-        self.reg_model.fit(X=np.log(x+self.eps),y=np.log(y+self.eps))
+        sample_weight = self.log_reg.predict_proba(x)[:,1]
+       # print sample_weight
+        self.reg_model.fit(X=np.log(x+self.eps),y=np.log(y+self.eps),sample_weight=sample_weight)
         res = (y - self.reg_model.predict(np.log(x+self.eps)))
         self.kde.fit(res)
 
         ## Train the hurdle model and use the fitted value to train the regression model.
         # - train reg_model
-    def save(self):
+    def save(self, model_id="001"):
         """
         save the reg model.
         Returns:
 
         """
-        pass
+        model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.reg_model}
+        json.dump(model_config,open(model_id+".json","wb"))
+
+
+    def load(self, model_id):
+        model_config = json.load(open(model_id+".json","rb"))
+        self.reg_model = pickle.load(model_config['regression'])
+        self.kde = pickle.load(model_config['kde'])
+        self.log_reg = pickle.load(model_config['zerone'])
+
 
     def predict(self, y, x):
         p = self.log_reg.predict(x)
@@ -51,6 +63,7 @@ class MixLinearModel(object):
 
 
     def __mixl(self, y, p, linear_predictions):
+
         """
          - if RAIN = 0, $ -log (1-p_1)$
          - if RAIN > 0, $ -log [p_1 \frac{P(log(RAIN + \epsilon)}{(RAIN + \epsilon)}]$
@@ -78,20 +91,3 @@ class MixLinearModel(object):
         result = zero_rain + non_zero
         return result
 
-if __name__ == '__main__':
-    #import pandas as pd
-    #df = pd.read_csv('../gpm-tahmo-rain.csv')
-    w = np.random.rand(100,6)
-
-    y ,x = w[:,0], w[:,1:]
-    #print y
-    mixl = MixLinearModel()
-    mixl.reg_model.fit(x,y)
-    yz = (y>0.5).astype(int)
-    mixl.log_reg.fit(x, yz)
-    res = y.reshape(-1,1) - mixl.reg_model.predict(x).reshape(-1,1)
-    #print res, res.shape
-    #mixl.kde.fit(res)
-    #print mixl.kde.score_samples(y.reshape(-1,1))
-    mixl.train(y, x)
-    print mixl.predict(y, x)
