@@ -2,8 +2,34 @@ from model.hurdle_regression import MixLinearModel
 import pandas as pd
 import numpy as np
 
+"""
+Main workflow:
+ 1. Input:
+    target_station: 
+"""
+
+
+
 def main():
     """
+    Operation:
+     - Train operation
+        -input: target_station, year.
+        -output: trained_model for a given station
+        -operation:
+            - train
+     - Prediction:
+        - input: target_station observation
+        - output: likelihood score.
+        - operation:
+            - load trained model
+            - load observed data from target_station and nearby stations.
+
+
+
+
+
+
     Input:
         target_station: target station
         datetime: datetime for qc.
@@ -12,6 +38,7 @@ def main():
           -
     :return:
     """
+
 
     df = pd.read_csv('sampletahmo.csv')
     w = np.random.rand(100, 6)
@@ -35,6 +62,7 @@ def main():
     mxx.to_json()
     mxx.from_json()
     print mxx.predict(y, x)
+
 
 
 if __name__ == '__main__':

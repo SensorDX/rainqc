@@ -1,0 +1,8 @@
+{
+"cloudant":{
+  "USERNAME": "3f7bf906-0c5d-4a19-af1a-f98b25b3f53a-bluemix",
+  "PASSWORD": "9dacc602d1c78b5a403b0f8c5dff31f2809cf0b14a2373666c38487c4291fbc7",
+  "ACCOUNT_NAME": "3f7bf906-0c5d-4a19-af1a-f98b25b3f53a-bluemix",
+  "URL": "https://tahmobluemix.cloudant.com/"
+  }
+}
