@@ -1,7 +1,8 @@
 from model.hurdle_regression import MixLinearModel
 import pandas as pd
 import numpy as np
-
+from feature_extractor import FeatureExtraction
+from util.data_source import  LocalDataSource
 """
 Main workflow:
  1. Input:
@@ -9,8 +10,32 @@ Main workflow:
 """
 
 
+def main_local():
 
-def main():
+    target_station = "TA00025"
+    fe = FeatureExtraction(data_source=LocalDataSource)
+    fe.make_features(target_station=target_station)
+    X, y, label = fe.X, fe.y, fe.label
+
+    ## Train the model.
+    mlm = MixLinearModel()
+    mlm.train(y, X)
+    mlm.save(model_id=target_station, model_path="rainqc_model")
+    score = mlm.score(y, X)
+    #print score
+    #print -np.log(score)
+
+    # Score/ anomalies for incoming observation.
+    mscore= MixLinearModel()
+    mscore.load(model_id=target_station, model_path="rainqc_model")
+    score = mscore.score(y, X)
+    print -np.log(score)
+
+
+
+
+
+def main_test():
     """
     Operation:
      - Train operation
@@ -66,7 +91,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main_local()
 
 
 

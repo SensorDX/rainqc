@@ -4,8 +4,9 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 import json
 import pickle
 import os
+import matplotlib.pylab as plt
 from sklearn.externals import joblib
-
+import seaborn as sbn
 
 class MixLinearModel(object):
 
@@ -20,6 +21,14 @@ class MixLinearModel(object):
         self.eps = 0.001
         self.log_reg = LogisticRegression()
         self.kde = KernelDensity(kernel="gaussian")
+
+    def residual_plot(self, observed, true_value, fitted ):
+
+        plt.scatter(true_value, np.log(observed))
+        plt.plot(true_value, fitted, '-r')
+        plt.xlabel('Log (predictor + eps)')
+        plt.ylabel('Log (response + eps)')
+        plt.show()
     def train(self, y, x):
         """
 
@@ -31,17 +40,21 @@ class MixLinearModel(object):
 
         """
         ## fit regression on log scale.
-        y = y.reshape(-1,1)
-
-        zero_one = (y>0.5).astype(int)
+        y = y.values.reshape(-1,1)
+        zero_one = (y>0.0).astype(int)
         self.log_reg.fit(x, zero_one)
         sample_weight = self.log_reg.predict_proba(x)[:,1]
-        self.reg_model.fit(X=np.log(x+self.eps),y=np.log(y+self.eps),sample_weight=sample_weight)
-        res = (y - self.reg_model.predict(np.log(x+self.eps)))
-        self.kde.fit(res)
 
-        ## Train the hurdle model and use the fitted value to train the regression model.
-        # - train reg_model
+
+        # Linear regression under log mode.
+        l_X, l_y = np.log(x+self.eps), np.log(y+self.eps)
+        self.reg_model.fit(X=l_X, y=l_y, sample_weight=sample_weight)
+        fitted = self.reg_model.predict(l_X)
+        residual = (fitted - l_y)
+        self.kde.fit(residual)
+
+        #self.residual_plot(np.mean(x,axis=1), l_y, fitted)
+
     def to_json(self, model_id="001", model_path="rainqc_model"):
 
         model_config = {"model_id":model_id,
@@ -83,10 +96,13 @@ class MixLinearModel(object):
         self.log_reg = joblib.load(os.path.join(loaded_model,"logistic_model.sv")) #pickle.load(model_config['zerone'])
 
 
-    def predict(self, y, x):
-        p = self.log_reg.predict(x)
+    def score(self, y, x, label=None):
+
+
+        p_fitted = self.log_reg.predict_proba(x)[:,1]
         linear_pred = self.reg_model.predict(np.log(x+self.eps))
-        return self.__mixl(y, p, linear_pred)
+
+        return self.__mixl(y, p_fitted, linear_pred)
 
 
     def __mixl(self, y, p, linear_predictions):
@@ -103,10 +119,10 @@ class MixLinearModel(object):
          predictions: fitted values for the log(rain + epsilon) model
 
         """
-        # Reshape for 1-D format.
-        #eps = 0.001
+
         p = p.reshape([-1, 1])
         observations = y.reshape([-1, 1])
+
         predictions = linear_predictions.reshape([-1, 1])
 
         zero_rain = np.multiply((1 - p), (observations == 0))

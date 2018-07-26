@@ -13,3 +13,11 @@ def roc_metric(pred, obs):
     plt.text(0.6, 0.2, "auc=" + str(auc_score))
     plt.legend(loc='best')
     return auc_score
+
+
+def insert_faults():
+    abnormal_report = range(200, 210)  # large abnormal rainfall report.
+    rainy_days = range(107, 117)
+    insert_fault[abnormal_report] = 20.0
+    insert_fault[rainy_days] = 0.0  # Flatten days with rain events.
+    fault_days = abnormal_report + rainy_days

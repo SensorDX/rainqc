@@ -11,18 +11,18 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     df.date = pd.to_datetime(df.date)
     if filter_year:
         df = df[df.date.dt.year == filter_year]
-    df_formatted = df.groupby(df.date.dt.dayofyear).apply(np.max)  ## take max readings of the hour.
+    df_formatted = df.groupby(df.date.dt.dayofyear).agg({weather_variable:np.sum, "date":np.max}) #apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
     return df_formatted
 
 
 class FeatureExtraction:
-    def __init__(self, data_source=None):
+    def __init__(self, data_source=None, radius=300, num_k_station=5, variable="pr"):
         self.X = None
         self.y = None
         self.label = None
-        self.radius = 300
-        self.num_k_station = 5
-        self.variable = "pr"
+        self.radius =radius
+        self.num_k_station = num_k_station
+        self.variable = variable
         self.data_source = data_source
 
     def make_features(self, target_station, date_range=[]):
@@ -37,6 +37,7 @@ class FeatureExtraction:
         """
         json_data = self.data_source.get_weather_data(target_station, self.variable, date_range=date_range)
         t_station = json_to_df(json_data, weather_variable=self.variable)
+        #print t_station
         self.y, self.label = t_station[self.variable].values.reshape(-1, 1), t_station['date']  # .values.reshape(-1, 1)
 
         k_nearest_station = self.data_source.nearby_stations(target_station, self.num_k_station, self.radius)
@@ -50,12 +51,10 @@ class FeatureExtraction:
         if len(stn_list) < 2:
             return NameError("There are less than 2 stations with equal number of observation as the target station.")
         self.X = np.hstack(stn_list)
+        df = pd.concat([pd.DataFrame(self.label), pd.DataFrame(self.y), pd.DataFrame(self.X)], axis=1)
 
-
-if __name__ == '__main__':
-    t_station = "TA00020"
-    fe = FeatureExtraction(data_source=LocalDataSource)
-    fe.make_features(target_station=t_station)
-    print fe.X[1:10, :]
-    # y, X, t = nearby_station("TA00056")
-    # print y.shape, X.shape, t.shape
+        pd.DataFrame.dropna(df, inplace=True)
+        self.label, self.y, self.X = df.iloc[:,0], df.iloc[:,1], df.iloc[:,2:]
+    def to_csv(self):
+        df = pd.concat([pd.DataFrame(self.label), pd.DataFrame(self.y), pd.DataFrame(self.X)], axis=1)
+        return df
