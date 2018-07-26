@@ -15,7 +15,7 @@ def main():
 
     df = pd.read_csv('sampletahmo.csv')
     w = np.random.rand(100, 6)
-    print df.head(5)
+    #print df.head(5)
     y, x = w[:, 0], w[:, 1:]
     # print y
     y,x = df.iloc[:,1].as_matrix(), df.iloc[:,2:].as_matrix()
@@ -29,6 +29,16 @@ def main():
     # mixl.kde.fit(res)
     # print mixl.kde.score_samples(y.reshape(-1,1))
     mixl.train(y, x)
-    print mixl.predict(y, x)
+    #print mixl.predict(y, x)
+    #mixl.save()
+    mxx = MixLinearModel()
+    mxx.to_json()
+    mxx.from_json()
+    print mxx.predict(y, x)
+
+
 if __name__ == '__main__':
     main()
+
+
+
