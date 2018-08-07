@@ -29,8 +29,8 @@ class FeatureExtraction:
         """
 
         Args:
-            target_station:
-            date_range:
+            target_station: (str) target station code.
+            date_range: (list) of date range from, to period.
 
         Returns:
 
@@ -52,9 +52,9 @@ class FeatureExtraction:
             return NameError("There are less than 2 stations with equal number of observation as the target station.")
         self.X = np.hstack(stn_list)
         df = pd.concat([pd.DataFrame(self.label), pd.DataFrame(self.y), pd.DataFrame(self.X)], axis=1)
-
         pd.DataFrame.dropna(df, inplace=True)
         self.label, self.y, self.X = df.iloc[:,0], df.iloc[:,1], df.iloc[:,2:]
+
     def to_csv(self):
         df = pd.concat([pd.DataFrame(self.label), pd.DataFrame(self.y), pd.DataFrame(self.X)], axis=1)
         return df

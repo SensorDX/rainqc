@@ -8,13 +8,15 @@ import matplotlib.pylab as plt
 from sklearn.externals import joblib
 import seaborn as sbn
 
+
+
+
 class MixLinearModel(object):
 
     """
         Mixture of linear model.
         0/1 Hurdle model.
     """
-
     def __init__(self):
         self.reg_model = LinearRegression()
 
@@ -29,6 +31,7 @@ class MixLinearModel(object):
         plt.xlabel('Log (predictor + eps)')
         plt.ylabel('Log (response + eps)')
         plt.show()
+
     def train(self, y, x):
         """
 
@@ -97,6 +100,16 @@ class MixLinearModel(object):
 
 
     def score(self, y, x, label=None):
+        """
+
+        Args:
+            y:
+            x:
+            label:
+
+        Returns:
+
+        """
 
 
         p_fitted = self.log_reg.predict_proba(x)[:,1]
@@ -110,10 +123,8 @@ class MixLinearModel(object):
         """
          - if RAIN = 0, $ -log (1-p_1)$
          - if RAIN > 0, $ -log [p_1 \frac{P(log(RAIN + \epsilon)}{(RAIN + \epsilon)}]$
-
-
-
         Args:
+
          observations: ground observation.
          p1: 0/1 prediction model.
          predictions: fitted values for the log(rain + epsilon) model
@@ -122,9 +133,7 @@ class MixLinearModel(object):
 
         p = p.reshape([-1, 1])
         observations = y.reshape([-1, 1])
-
         predictions = linear_predictions.reshape([-1, 1])
-
         zero_rain = np.multiply((1 - p), (observations == 0))
         non_zero = np.divide(np.multiply(p,
                                          np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(
