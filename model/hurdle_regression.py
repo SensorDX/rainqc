@@ -10,7 +10,6 @@ import seaborn as sbn
 
 
 
-
 class MixLinearModel(object):
 
     """
@@ -65,10 +64,10 @@ class MixLinearModel(object):
                         "logistic_model":pickle.dumps(self.log_reg),
                         "linear_model":pickle.dumps(self.reg_model)
                         }
-        json.dump(model_config,open(os.path.join(model_path,model_id+".json"),"wb"))
+        json.dump(model_config,open(os.path.join(model_path,model_id+".tahmodata"),"wb"))
 
     def from_json(self,model_id="001", model_path="rainqc_model"):
-        js = json.load(os.path.join(model_path,model_id+".json"),"rb")
+        js = json.load(os.path.join(model_path,model_id+".tahmodata"),"rb")
         self.kde = pickle.loads(js['kde_model'])
         self.reg_model = pickle.loads(js['linear_model'])
         self.log_reg = pickle.loads(js['logistic_model'])
@@ -80,7 +79,7 @@ class MixLinearModel(object):
 
         """
         #model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.reg_model}
-        #json.dump(model_config,open(model_id+".json","wb"))
+        #tahmodata.dump(model_config,open(model_id+".tahmodata","wb"))
         current_model = os.path.join(model_path,model_id)
         if not os.path.exists(current_model):
             os.makedirs(current_model)
@@ -90,7 +89,7 @@ class MixLinearModel(object):
 
     def load(self, model_id="001", model_path="rainqc_model"):
         loaded_model = os.path.join(model_path, model_id)
-        #model_config = json.load(open(model_id+".json","rb"))
+        #model_config = tahmodata.load(open(model_id+".tahmodata","rb"))
         if not os.path.exists(loaded_model):
             return ValueError("Directory for saved models don't exist")
 
