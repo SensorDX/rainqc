@@ -76,18 +76,38 @@ class LocalDataSource(DataSource):
 
     @staticmethod
     def station_list():
-        kenyan_station = ['TA00020', 'TA00021', 'TA00023', 'TA00024', 'TA00025', 'TA00026', 'TA00027', 'TA00028',
-                          'TA00029', 'TA00030', 'TA00054', 'TA00056', 'TA00057', 'TA00061', 'TA00064', 'TA00065',
-                          'TA00066', 'TA00067', 'TA00068', 'TA00069', 'TA00070', 'TA00071', 'TA00072', 'TA00073',
-                          'TA00074', 'TA00076', 'TA00077' ]
-        return kenyan_station
+        # kenyan_station = ['TA00020', 'TA00021', 'TA00023', 'TA00024', 'TA00025', 'TA00026', 'TA00027', 'TA00028',
+        #                   'TA00029', 'TA00030', 'TA00054', 'TA00056', 'TA00057', 'TA00061', 'TA00064', 'TA00065',
+        #                   'TA00066', 'TA00067', 'TA00068', 'TA00069', 'TA00070', 'TA00071', 'TA00072', 'TA00073',
+        #                   'TA00074', 'TA00076', 'TA00077' ]
+        station_list = [ stn.split('_')[1].split('.json')[0] for stn in os.listdir(
+            os.path.join(LocalDataSource.local_project_path,'tahmodata'))]
+        return station_list
+    @staticmethod
+    def __available_station(sorted_nearest_station, num_k_station):
+
+        online_station = LocalDataSource.station_list()
+        available_station = []
+
+        for station in sorted_nearest_station:
+            if station in online_station:
+                available_station.append(station)
+                num_k_station -=1
+            if num_k_station==0:
+                break
+        return available_station
+
+
 
     @staticmethod
     def nearby_stations(site_code, k=10, radius=500):
 
         stations = pd.read_csv(os.path.join(LocalDataSource.local_project_path,"nearest_stations.csv"))  # Pre-computed value.
         k_nearest = stations[(stations['from'] == site_code) & (stations['distance'] < radius)]
-        k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)[0:k]
-        return k_nearest.to.tolist()
+
+        k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)['to']  #[0:k]
+        print k_nearest.tolist()
+        available_stations = LocalDataSource.__available_station(k_nearest, k)
+        return available_stations
 
 

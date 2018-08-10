@@ -1,15 +1,23 @@
 from services.data_source import LocalDataSource as LDS
 from feature_extractor import PairwiseView
 
+def availabe_station():
+    target_station = 'TA00077'
+    nearby = LDS.nearby_stations(target_station, k=5)
+
+
+
 
 def test_paire_view():
     fe = PairwiseView(data_source=LDS, variable='pr', num_k_station=5)
-    fe.make_features(target_station='TA00024',
+    fe.make_view(target_station='TA00024',
                      date_from='2017-01-01 00:00:00', date_to='2017-01-11 00:00:00')
 
     print fe.X
+    print fe.y
 
 if __name__ == '__main__':
+    #availabe_station()
     test_paire_view()
 
     # target_station = 'TA00020'
