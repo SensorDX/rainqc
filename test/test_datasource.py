@@ -17,8 +17,8 @@ def test_paire_view():
     print fe.y
 
 if __name__ == '__main__':
-    #availabe_station()
-    test_paire_view()
+    availabe_station()
+    #test_paire_view()
 
     # target_station = 'TA00020'
     # print LDS.local_project_path

@@ -28,19 +28,6 @@ class DataSource(object):
     @staticmethod
     def station_list():
         return NotImplementedError
-    @staticmethod
-    def get_daily_rainfall(station_list, date):
-        """
-        Return rainfall readings of list of stations, if range of date-given, it returns numpy array of readings.
-
-        Args:
-            statioin_list: list(station_name)
-            date: date of observation.
-
-        Returns: Daily rainfall data from list of station, with the vector value of station.
-
-        """
-        return NotImplementedError
 
     @staticmethod
     def measurements(station_name, variable, date_from, date_to, **kwargs):
@@ -56,6 +43,7 @@ class DataSource(object):
 
         """
         return NotImplementedError
+
 
 class LocalDataSource(DataSource):
     local_project_path = "../"
@@ -76,10 +64,6 @@ class LocalDataSource(DataSource):
 
     @staticmethod
     def station_list():
-        # kenyan_station = ['TA00020', 'TA00021', 'TA00023', 'TA00024', 'TA00025', 'TA00026', 'TA00027', 'TA00028',
-        #                   'TA00029', 'TA00030', 'TA00054', 'TA00056', 'TA00057', 'TA00061', 'TA00064', 'TA00065',
-        #                   'TA00066', 'TA00067', 'TA00068', 'TA00069', 'TA00070', 'TA00071', 'TA00072', 'TA00073',
-        #                   'TA00074', 'TA00076', 'TA00077' ]
         station_list = [ stn.split('_')[1].split('.json')[0] for stn in os.listdir(
             os.path.join(LocalDataSource.local_project_path,'tahmodata'))]
         return station_list
