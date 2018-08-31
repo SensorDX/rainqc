@@ -1,4 +1,4 @@
-
+from view.view import ViewFactory
 
 class RQC(object):
 
@@ -9,8 +9,8 @@ class RQC(object):
         self.data_source = None
         self.num_k_stations = num_k_stations
         self.radius = radius
-
-
+        self.view_object_list = None
+        self.view_factory = ViewFactory()
     def add(self, type, name):
         # Add entity type and model name to the system
         if type=='View':
@@ -23,6 +23,16 @@ class RQC(object):
         self.model = model_name
 
     def build_view(self,date_from, date_to, **kwargs):
+        """
+        Given range of date, construct views from the given view names. Construct view for each stations.
+        Args:
+            date_from:
+            date_to:
+            **kwargs:
+
+        Returns:
+
+        """
         nearby_stations = self.data_source.nearby_station(self.target_station, self.num_k_stations, self.radius)
         station_data = {}
         query_data = lambda station_name: self.data_source.measurements(station_name, self.variable,
@@ -33,9 +43,13 @@ class RQC(object):
         for station_name in nearby_stations:
             station_data[station_name] = query_data(station_name)
 
+        for view in self.view_registry:
+            vw = self.view_factory.create_view(view)
+            vw.make_view(station_data.values)
+            self.view_object_list[view] = vw
 
 
-    def fit(self, sensor, date_range):
+    def fit(self,):
         pass
     def evaluate(self):
         pass

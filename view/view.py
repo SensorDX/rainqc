@@ -21,6 +21,11 @@ class ViewDefinition:
         self.lable = label
         self.x = x
 
+class ViewFactory:
+    @staticmethod
+    def create_view(view_type):
+        if view_type=='PairwiseView':
+            return PairwiseView()
 
 class PairwiseView(View):
 
