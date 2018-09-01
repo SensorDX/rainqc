@@ -50,7 +50,9 @@ if __name__ == '__main__':
     target_station = 'TA0020'
     #stn_list = TahmoAPI.station_list()
     #print (stn_list)
-    measure = TahmoAPI.measurements(station_name=target_station, variable='pr',
-                            date_from='2017-01-01 00:00:00', date_to='2017-01-11 00:00:00',
-                            group='D')
-    print measure
+    nearby_station = TahmoAPI.nearby_stations(target_station)
+    print nearby_station
+    #measure = TahmoAPI.measurements(station_name=target_station, variable='pr',
+     #                       date_from='2017-01-01 00:00:00', date_to='2017-01-11 00:00:00',
+     #                       group='D')
+    #print measure
