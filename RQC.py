@@ -1,5 +1,5 @@
 from view.view import ViewFactory
-
+from model.hurdle_regression import MixLinearModel
 class RQC(object):
 
     def __init__(self, target_station, variable='pr', num_k_stations=5, radius=100):
@@ -19,9 +19,11 @@ class RQC(object):
             self.add_model(name)
     def add_view(self, view_name):
         self.view_registry.update({"name":view_name})
-    def add_model(self, model_name):
-        self.model = model_name
-
+    def add_model(self, model_name=None):
+        if model_name is None:
+            self.model = MixLinearModel()
+        else:
+            self.model = model_name
     def build_view(self,date_from, date_to, **kwargs):
         """
         Given range of date, construct views from the given view names. Construct view for each stations.
@@ -47,10 +49,14 @@ class RQC(object):
             vw = self.view_factory.create_view(view)
             vw.make_view(station_data.values)
             self.view_object_list[view] = vw
+        return self.view_object_list
 
+    def fit(self, separate_model=True):
+        if separate_model:
+            ## Train separate model for each station pair with the target stations.
+            self.model.train()
+        ## TODO: Add for training model of the separte pairwise operations.
 
-    def fit(self,):
-        pass
     def evaluate(self):
         pass
     def score(self):

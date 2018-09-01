@@ -16,10 +16,11 @@ class ViewDefinition:
     View definition format.
     """
 
-    def __init__(self, name=None, label=None, x=None):
+    def __init__(self, name=None, label=None, x=None, y=None):
         self.name = name
         self.lable = label
         self.x = x
+        self.y = y
 
 class ViewFactory:
     @staticmethod
@@ -61,7 +62,7 @@ class PairwiseView(View):
 
         label = options.get('label')
         self.X , self.y = X[:,1:], X[:,0:1:]
-        return ViewDefinition(name=self.__class__.__name__, label=label, x=X)
+        return ViewDefinition(name=self.__class__.__name__, label=label, x=X[:,1:], y=X[:,0:1:])
 
 
 
