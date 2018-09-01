@@ -5,7 +5,6 @@ import numpy as np
 import os
 import json
 
-
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=2017):
     rows = [{'date': row['date'], weather_variable: row['measurements'][weather_variable]} for row in json_station_data]
     df = pd.DataFrame(rows)
@@ -15,8 +14,6 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     if group:
         df = df.groupby(df.date.dt.dayofyear).agg({weather_variable:np.sum, "date":np.max}) #apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
     return df
-
-
 
 class DataSource(object):
     """
@@ -58,6 +55,7 @@ class DataSource(object):
         return NotImplementedError
 
 class LocalDataSource(DataSource):
+
     local_project_path = "../"
     @staticmethod
     def json_measurements(station_name):
