@@ -10,6 +10,6 @@ def suite():
 
 
 if __name__ == '__main__':
-    runner =  unittest.TextTestRunner()
+    runner = unittest.TextTestRunner()
     test_suite = suite()
     runner.run(test_suite)
