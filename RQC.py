@@ -61,3 +61,5 @@ class RQC(object):
         pass
     def score(self):
         pass
+
+    ##TODO: Complete basic model.
