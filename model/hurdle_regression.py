@@ -129,7 +129,7 @@ class MixLinearModel(object):
          predictions: fitted values for the log(rain + epsilon) model
 
         """
-
+        # This
         p = p.reshape([-1, 1])
         observations = y.reshape([-1, 1])
         predictions = linear_predictions.reshape([-1, 1])

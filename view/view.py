@@ -1,16 +1,20 @@
 import numpy as np
 import pandas as pd
 
+
 class View(object):
-    def __init__(self,   variable="pr"):
+    def __init__(self, variable="pr"):
         self.X = None
         self.y = None
         self.label = None
 
         self.variable = variable
-        #self.data_source = data_source
+        # self.data_source = data_source
+
     def make_view(self, target_station, stations, **kwargs):
         return NotImplementedError
+
+
 class ViewDefinition:
     """
     View definition format.
@@ -18,24 +22,25 @@ class ViewDefinition:
 
     def __init__(self, name=None, label=None, x=None, y=None):
         self.name = name
-        self.lable = label
+        self.label = label
         self.x = x
         self.y = y
+
 
 class ViewFactory:
     @staticmethod
     def create_view(view_type):
-        if view_type=='PairwiseView':
+        if view_type == 'PairwiseView':
             return PairwiseView()
 
-class PairwiseView(View):
 
+class PairwiseView(View):
 
     def __init__(self, variable=None):
         self.__name__ = "PairwiseView"
         super(PairwiseView, self).__init__(variable=variable)
 
-    def make_view(self, target_station,  stations, **options):
+    def make_view(self, target_station, stations, **options):
         """
 
         Args:
@@ -48,7 +53,7 @@ class PairwiseView(View):
         """
 
         len_series = len(target_station)
-        assert all(len_series==len(stn) for stn in stations) # Check dimension mismatch.
+        assert all(len_series == len(stn) for stn in stations)  # Check dimension mismatch.
         tuples_list = [target_station]
         for stn in stations:
             tuples_list.append(stn)
@@ -59,13 +64,11 @@ class PairwiseView(View):
         if options.get("normalize"):
             pass
 
-
         label = options.get('label')
-        self.X , self.y = X[:,1:], X[:,0:1:]
-        return ViewDefinition(name=self.__class__.__name__, label=label, x=X[:,1:], y=X[:,0:1:])
-
-
-
+        if options.get('split'):
+            return [ViewDefinition(name=self.__class__.__name__, label=label, x=X[:, [i]], y=X[:, 0:1:])
+                    for i in X.shape[1]]
+        return ViewDefinition(name=self.__class__.__name__, label=label, x=X[:, 1:], y=X[:, 0:1:])
 
     #
     # def make_view(self, target_station, date_from, date_to):

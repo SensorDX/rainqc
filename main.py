@@ -94,7 +94,7 @@ def main_test():
     mxx = MixLinearModel()
     mxx.to_json()
     mxx.from_json()
-    print mxx.predict(y, x)
+    print (mxx.predict(y, x))
 
 
 

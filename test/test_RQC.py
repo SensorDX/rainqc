@@ -1,21 +1,26 @@
 from unittest import TestCase
 from RQC import RQC
-from services.data_source import LocalDataSource
+from services.toy_datasource import ToyDataSource
+from view.view import ViewDefinition
 class TestRQC(TestCase):
     def test_build_view(self):
-        target_station = 'TA00025'
+        target_station = 'TA0005'
         view_list = self.rqc.build_view(target_station=target_station,
-                 date_from='2017-01-01 00:00:00',
-                 date_to='2017-05-01 00:00:00')
+                date_from='2017-01-01 00:00:00',
+               date_to='2017-05-01 00:00:00')
 
         self.assertEqual(len(view_list), 1)
+        self.assertIsInstance(view_list.values()[0], ViewDefinition)
 
     def setUp(self):
-        self.rqc = RQC(target_station='TA00020')
-        self.rqc.data_source = LocalDataSource
+        self.rqc = RQC()
+        self.rqc.data_source = ToyDataSource
         self.rqc.add("View","PairwiseView")
-        self.rqc.add_model()
-
+        #self.rqc.add_model()
+    def test_add_view(self):
+        self.assertEqual(self.rqc.view_registry.values()[0],'PairwiseView')
+    def test_toy_datasource(self):
+        self.assertEqual(len(self.rqc.data_source.station_list()), 19)
 
 
 

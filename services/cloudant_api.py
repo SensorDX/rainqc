@@ -11,7 +11,10 @@ project_path ="/home/tadeze/projects/sensordx/rainqc"
 class CloudantAuthentication:
     config = json.load(open(os.path.join(project_path,"util/config.tahmodata"),"rb"))["cloudant"]
     URL = config["URL"] #'https://tahmobluemix.cloudant.com/'
-    client = Cloudant(config["USERNAME"], config["PASSWORD"], account=config["ACCOUNT_NAME"], connect=True)
+    client = Cloudant(config["USERNAME"],
+                      config["PASSWORD"],
+                      account=config["ACCOUNT_NAME"],
+                      connect=True)
     @classmethod
     def open_session(cls):
         cls.session = cls.client.session()
@@ -42,6 +45,7 @@ class BluemixSource(DataSource):
         docs = current_station.get_query_result(selector)
         CloudantAuthentication.close()
         return docs
+
 if __name__ == '__main__':
     js = BluemixSource.get_weather_data(station_name='ta00020', variable='pr',
                                         date_range=[u'2016-08-11', u'2016-08-12'])
