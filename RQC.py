@@ -1,5 +1,6 @@
 from view.view import ViewFactory
 from model.hurdle_regression import MixLinearModel
+from services.
 class RQC(object):
 
     def __init__(self, target_station, variable='pr', num_k_stations=5, radius=100):
@@ -11,16 +12,14 @@ class RQC(object):
         self.radius = radius
         self.view_object_list = {}
         self.view_factory = ViewFactory()
-
     def add(self, type, name):
         # Add entity type and model name to the system
-        if type == 'View':
+        if type=='View':
             self.add_view(name)
-        elif type == 'model':
+        elif type=='model':
             self.add_model(name)
         else:
             return
-
     def add_view(self, view_name):
         self.view_registry.update({"name": view_name})
 
@@ -75,13 +74,8 @@ class RQC(object):
 
     def evaluate(self):
         pass
-
     def score(self):
         pass
-<<<<<<< HEAD
-
-    ##TODO: Complete basic model.
-=======
 if __name__ == '__main__':
     from services.toy_datasource import ToyDataSource
     rqc = RQC()
@@ -89,4 +83,3 @@ if __name__ == '__main__':
     rqc.add_view('PairwiseView')
     vw = rqc.build_view(target_station='TA0001', date_from='2010-01-01', date_to='2010-02-01', group='D')
     print vw.values()[0]
->>>>>>> 528d05114406f953ab75b632022f0fecb437e865
