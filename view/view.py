@@ -55,9 +55,10 @@ class PairwiseView(View):
         len_series = len(target_station)
         assert all(len_series == len(stn) for stn in stations)  # Check dimension mismatch.
         tuples_list = [target_station]
-        for stn in stations:
-            tuples_list.append(stn)
-        X = np.hstack(tuples_list)
+        #for stn in stations:
+         #   tuples_list.append(stn)
+        tuples_list = [target_station] + stations
+        X = np.vstack(tuples_list).T
 
         if options.get("diff"):
             pass
@@ -68,7 +69,8 @@ class PairwiseView(View):
         if options.get('split'):
             return [ViewDefinition(name=self.__class__.__name__, label=label, x=X[:, [i]], y=X[:, 0:1:])
                     for i in X.shape[1]]
-        return ViewDefinition(name=self.__class__.__name__, label=label, x=X[:, 1:], y=X[:, 0:1:])
+        return ViewDefinition(name=self.__class__.__name__,
+                              label=label, x=X[:, 1:], y=X[:, 0:1:])
 
     #
     # def make_view(self, target_station, date_from, date_to):

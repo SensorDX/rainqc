@@ -53,7 +53,7 @@ class DataSource(object):
 
 
 class LocalDataSource(DataSource):
-    local_project_path = "../"
+    local_project_path = "." #""../"
 
     @staticmethod
     def json_measurements(station_name):

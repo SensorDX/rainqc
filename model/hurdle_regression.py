@@ -8,6 +8,13 @@ import matplotlib.pylab as plt
 from sklearn.externals import joblib
 import seaborn as sbn
 
+class ModelFactory:
+    @staticmethod
+    def create_model(model_name):
+        if model_name=='MixLinear':
+            return MixLinearModel()
+        if model_name=='Linear':
+            return LinearRegression()
 
 
 class MixLinearModel(object):
@@ -31,7 +38,7 @@ class MixLinearModel(object):
         plt.ylabel('Log (response + eps)')
         plt.show()
 
-    def train(self, y, x):
+    def fit(self, x, y):
         """
 
         Args:
@@ -42,20 +49,68 @@ class MixLinearModel(object):
 
         """
         ## fit regression on log scale.
-        y = y.values.reshape(-1,1)
-        zero_one = (y>0.0).astype(int)
-        self.log_reg.fit(x, zero_one)
-        sample_weight = self.log_reg.predict_proba(x)[:,1]
+        if y.ndim <2:
+            y = y.values.reshape(-1,1)
+        #y = y.values.reshape(-1,1)
+        l_X, l_y = np.log(x + self.eps), np.log(y + self.eps)
+        y_zero_one = (y>0.0).astype(int)
+        sample_weight = None
+        if y_zero_one.max()!=y_zero_one.min():
+
+            self.log_reg.fit(x, y_zero_one)
+            sample_weight = self.log_reg.predict_proba(x)[:,1]
 
 
         # Linear regression under log mode.
-        l_X, l_y = np.log(x+self.eps), np.log(y+self.eps)
         self.reg_model.fit(X=l_X, y=l_y, sample_weight=sample_weight)
         fitted = self.reg_model.predict(l_X)
         residual = (fitted - l_y)
         self.kde.fit(residual)
 
+        return self
+
         #self.residual_plot(np.mean(x,axis=1), l_y, fitted)
+
+
+    def predict(self, x, y, label=None):
+        """
+
+        Args:
+            y:
+            x:
+            label:
+
+        Returns:
+        """
+        p_fitted = self.log_reg.predict_proba(x)[:,1]
+        linear_pred = self.reg_model.predict(np.log(x+self.eps))
+        return self.__mixl(y, p_fitted, linear_pred)
+
+
+    def __mixl(self, y, p, linear_predictions):
+
+        """
+         - if RAIN = 0, $ -log (1-p_1)$
+         - if RAIN > 0, $ -log [p_1 \frac{P(log(RAIN + \epsilon)}{(RAIN + \epsilon)}]$
+        Args:
+
+         observations: ground observation.
+         p1: 0/1 prediction model.
+         predictions: fitted values for the log(rain + epsilon) model
+
+        """
+        # This
+        p = p.reshape([-1, 1])
+        observations = y.reshape([-1, 1])
+        predictions = linear_predictions.reshape([-1, 1])
+        zero_rain = np.multiply((1 - p), (observations == 0))
+        non_zero = np.divide(np.multiply(p,
+                                         np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(
+                                             [-1, 1])),
+                             abs(observations + self.eps))
+
+        result = zero_rain + non_zero
+        return result
 
     def to_json(self, model_id="001", model_path="rainqc_model"):
 
@@ -96,49 +151,4 @@ class MixLinearModel(object):
         self.reg_model = joblib.load(os.path.join(loaded_model,"linear_model.sv"))
         self.kde = joblib.load(os.path.join(loaded_model,"kde_model.sv"))
         self.log_reg = joblib.load(os.path.join(loaded_model,"logistic_model.sv")) #pickle.load(model_config['zerone'])
-
-
-    def score(self, y, x, label=None):
-        """
-
-        Args:
-            y:
-            x:
-            label:
-
-        Returns:
-
-        """
-
-
-        p_fitted = self.log_reg.predict_proba(x)[:,1]
-        linear_pred = self.reg_model.predict(np.log(x+self.eps))
-
-        return self.__mixl(y, p_fitted, linear_pred)
-
-
-    def __mixl(self, y, p, linear_predictions):
-
-        """
-         - if RAIN = 0, $ -log (1-p_1)$
-         - if RAIN > 0, $ -log [p_1 \frac{P(log(RAIN + \epsilon)}{(RAIN + \epsilon)}]$
-        Args:
-
-         observations: ground observation.
-         p1: 0/1 prediction model.
-         predictions: fitted values for the log(rain + epsilon) model
-
-        """
-        # This
-        p = p.reshape([-1, 1])
-        observations = y.reshape([-1, 1])
-        predictions = linear_predictions.reshape([-1, 1])
-        zero_rain = np.multiply((1 - p), (observations == 0))
-        non_zero = np.divide(np.multiply(p,
-                                         np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(
-                                             [-1, 1])),
-                             abs(observations + self.eps))
-
-        result = zero_rain + non_zero
-        return result
 

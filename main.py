@@ -21,16 +21,16 @@ def main_local():
 
     ## Train the model.
     mlm = MixLinearModel()
-    mlm.train(y, X)
+    mlm.fit(X, y)
     mlm.save(model_id=target_station, model_path="rainqc_model")
-    score = mlm.score(y, X)
-    #print score
+    score = mlm.predict(y, X)
+    print score
     #print -np.log(score)
 
     # Score/ anomalies for incoming observation.
     mscore= MixLinearModel()
     mscore.load(model_id=target_station, model_path="rainqc_model")
-    score = mscore.score(y, X)
+    score = mscore.predcit(X, y)
     print -np.log(score)
 
 def main_pairwise_station():
