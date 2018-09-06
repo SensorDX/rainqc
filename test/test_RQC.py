@@ -1,7 +1,10 @@
 from unittest import TestCase
+
 from RQC import RQC
-from services.toy_datasource import ToyDataSource
+from datasource.toy_datasource import ToyDataSource
 from view.view import ViewDefinition
+
+
 class TestRQC(TestCase):
     def test_build_view(self):
         target_station = 'TA0005'

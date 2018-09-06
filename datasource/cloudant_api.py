@@ -9,7 +9,7 @@ from data_source import DataSource
 project_path ="/home/tadeze/projects/sensordx/rainqc"
 
 class CloudantAuthentication:
-    config = json.load(open(os.path.join(project_path,"util/config.tahmodata"),"rb"))["cloudant"]
+    config = json.load(open(os.path.join(project_path,"util/config.localdatasource"),"rb"))["cloudant"]
     URL = config["URL"] #'https://tahmobluemix.cloudant.com/'
     client = Cloudant(config["USERNAME"],
                       config["PASSWORD"],
@@ -104,8 +104,8 @@ def extract_station(station_name='ta00001', date_from=u'2012-08-11', date_to=u'2
 #     if qeury_len < 1:
 #         print qeury_len, " Size of the query"
 #         return
-#     # tahmodata.dump(result_doc[:], open(os.path.join(
-#     #     output_path, station_name + ".tahmodata"), "w"))
+#     # localdatasource.dump(result_doc[:], open(os.path.join(
+#     #     output_path, station_name + ".localdatasource"), "w"))
 #     # # cv_todf = convert_to_df(result_doc)
 #     # Save csv
 #     # cv_todf.to_csv(os.path.join(output_path,station_name+".csv"),index=False)

@@ -2,13 +2,8 @@
 
 ## Qeury data and build views based on the data.
 
-import pandas as pd
 import numpy as np
-from util.stations_tools import nearby_stations
-from services.data_source import LocalDataSource as LDS
-import json
-
-
+import pandas as pd
 
 
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=2017):

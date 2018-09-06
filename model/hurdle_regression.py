@@ -15,6 +15,8 @@ class ModelFactory:
             return MixLinearModel()
         if model_name=='Linear':
             return LinearRegression()
+def evaluate(metric='log_like'):
+    pass
 
 
 class MixLinearModel(object):
@@ -25,13 +27,11 @@ class MixLinearModel(object):
     """
     def __init__(self):
         self.reg_model = LinearRegression()
-
         self.eps = 0.001
         self.log_reg = LogisticRegression()
         self.kde = KernelDensity(kernel="gaussian")
 
     def residual_plot(self, observed, true_value, fitted ):
-
         plt.scatter(true_value, np.log(observed))
         plt.plot(true_value, fitted, '-r')
         plt.xlabel('Log (predictor + eps)')
@@ -48,7 +48,6 @@ class MixLinearModel(object):
         Returns:
 
         """
-        ## fit regression on log scale.
         if y.ndim <2:
             y = y.values.reshape(-1,1)
         #y = y.values.reshape(-1,1)
@@ -56,7 +55,6 @@ class MixLinearModel(object):
         y_zero_one = (y>0.0).astype(int)
         sample_weight = None
         if y_zero_one.max()!=y_zero_one.min():
-
             self.log_reg.fit(x, y_zero_one)
             sample_weight = self.log_reg.predict_proba(x)[:,1]
 
@@ -66,11 +64,7 @@ class MixLinearModel(object):
         fitted = self.reg_model.predict(l_X)
         residual = (fitted - l_y)
         self.kde.fit(residual)
-
         return self
-
-        #self.residual_plot(np.mean(x,axis=1), l_y, fitted)
-
 
     def predict(self, x, y, label=None):
         """
@@ -103,6 +97,7 @@ class MixLinearModel(object):
         p = p.reshape([-1, 1])
         observations = y.reshape([-1, 1])
         predictions = linear_predictions.reshape([-1, 1])
+
         zero_rain = np.multiply((1 - p), (observations == 0))
         non_zero = np.divide(np.multiply(p,
                                          np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(
@@ -119,10 +114,10 @@ class MixLinearModel(object):
                         "logistic_model":pickle.dumps(self.log_reg),
                         "linear_model":pickle.dumps(self.reg_model)
                         }
-        json.dump(model_config,open(os.path.join(model_path,model_id+".tahmodata"),"wb"))
+        json.dump(model_config,open(os.path.join(model_path,model_id+".localdatasource"),"wb"))
 
     def from_json(self,model_id="001", model_path="rainqc_model"):
-        js = json.load(os.path.join(model_path,model_id+".tahmodata"),"rb")
+        js = json.load(os.path.join(model_path,model_id+".localdatasource"),"rb")
         self.kde = pickle.loads(js['kde_model'])
         self.reg_model = pickle.loads(js['linear_model'])
         self.log_reg = pickle.loads(js['logistic_model'])
@@ -134,7 +129,7 @@ class MixLinearModel(object):
 
         """
         #model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.reg_model}
-        #tahmodata.dump(model_config,open(model_id+".tahmodata","wb"))
+        #localdatasource.dump(model_config,open(model_id+".localdatasource","wb"))
         current_model = os.path.join(model_path,model_id)
         if not os.path.exists(current_model):
             os.makedirs(current_model)
@@ -144,7 +139,7 @@ class MixLinearModel(object):
 
     def load(self, model_id="001", model_path="rainqc_model"):
         loaded_model = os.path.join(model_path, model_id)
-        #model_config = tahmodata.load(open(model_id+".tahmodata","rb"))
+        #model_config = localdatasource.load(open(model_id+".localdatasource","rb"))
         if not os.path.exists(loaded_model):
             return ValueError("Directory for saved models don't exist")
 

@@ -1,8 +1,10 @@
-from model.hurdle_regression import MixLinearModel
-import pandas as pd
 import numpy as np
-from feature_extractor import PairwiseView
-from services.data_source import  LocalDataSource
+import pandas as pd
+
+from datasource.data_source import  LocalDataSource
+from model.hurdle_regression import MixLinearModel
+from view.feature_extractor import PairwiseView
+
 """
 Main workflow:
  1. Input:
