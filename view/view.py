@@ -3,14 +3,13 @@ import pandas as pd
 from collections import defaultdict
 
 class View(object):
-    def __init__(self, variable="pr"):
+    def __init__(self):
         self.X = None
         self.y = None
         self.label = None
         self.view_metadata = defaultdict()
 
-        self.variable = variable
-        # self.data_source = data_source
+
 
     def make_view(self, target_station, stations, **kwargs):
         return NotImplementedError
@@ -24,9 +23,17 @@ class ViewDefinition:
     def __init__(self, name=None, label=None, x=None, y=None):
         self.name = name
         self.label = label
-        self.x = x
-        self.y = y
+        if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
+            return NameError("The input should be given as ndarray")
 
+        self.x = x.reshape(-1,1)
+        self.y = y.reshape(-1,1)
+    # def transform(self, x):
+    #     if options.get("diff"):
+    #         pass
+    #     if options.get("normalize"):
+    #         pass
+    #     pass
 
 class ViewFactory:
     @staticmethod
@@ -38,29 +45,32 @@ class PairwiseView(View):
 
     def __init__(self, variable=None):
         self.__name__ = "PairwiseView"
-        super(PairwiseView, self).__init__(variable=variable)
+        super(PairwiseView, self).__init__()
+        self.variable = variable
 
-    def make_view(self, target_station, stations, **options):
+    def make_view(self, target_station, covariate_stations, **options):
         """
 
         Args:
-            target_station: 1xD numpy array
-            stations: list of 1xD numpy array
+            target_station: Nx1 numpy array
+            covariate_stations: list of Nx1 numpy array
             **options: key,value optional
 
-        Returns:
+        Returns: Nxlen(sations) numpy matrix.
 
         """
+        #print target_station.shape ,
+        len_series = target_station.shape[0]
+        # Check dimension mismatch.
+        if all(len_series == stn.shape[0] for stn in covariate_stations):
+            return ValueError("Dimension mismatch b/n target station and covariate covariate_stations")
 
-        len_series = len(target_station)
-        assert all(len_series == len(stn) for stn in stations)  # Check dimension mismatch.
-        tuples_list = [target_station] + stations
-        X = np.vstack(tuples_list).T
+        tuples_list = [target_station] + covariate_stations
+        print [xx.shape for xx in tuples_list]
+        dt = np.hstack(tuples_list)
+        self.x, self.y = dt[:,1:], dt[:, 0:1]
         self.label = options.get("label")
-        if options.get("diff"):
-            pass
-        if options.get("normalize"):
-            pass
+        print dt.shape
+        return self
 
-        return ViewDefinition(name=self.__class__.__name__,
-                              label=self.label, x=X[:, 1:], y=X[:, 0:1:])
+

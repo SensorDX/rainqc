@@ -7,7 +7,7 @@ class TestPairwiseView(TestCase):
         self.num_stations = 4
         self.n = 200
         self.stations = np.random.randn(self.n, self.num_stations)
-        self.pv = PairwiseView()
+        self.pv = PairwiseView(variable='pr')
 
     def test_make_view(self):
 

@@ -7,7 +7,7 @@ import os
 import matplotlib.pylab as plt
 from sklearn.externals import joblib
 import seaborn as sbn
-
+import numpy as np
 class ModelFactory:
     @staticmethod
     def create_model(model_name):
@@ -15,8 +15,10 @@ class ModelFactory:
             return MixLinearModel()
         if model_name=='Linear':
             return LinearRegression()
-def evaluate(metric='log_like'):
-    pass
+
+
+
+
 
 
 class MixLinearModel(object):
@@ -30,6 +32,8 @@ class MixLinearModel(object):
         self.eps = 0.001
         self.log_reg = LogisticRegression()
         self.kde = KernelDensity(kernel="gaussian")
+        self.fitted = None
+        self.residual = None
 
     def residual_plot(self, observed, true_value, fitted ):
         plt.scatter(true_value, np.log(observed))
@@ -38,19 +42,25 @@ class MixLinearModel(object):
         plt.ylabel('Log (response + eps)')
         plt.show()
 
-    def fit(self, x, y):
+    def fit(self, x, y, verbose=False):
         """
 
         Args:
-            y: observed value
-            x: features
+            y: 1-D Nx1 ndarray observed value.
+            x: NxD ndarry features.
 
         Returns:
 
         """
-        if y.ndim <2:
-            y = y.values.reshape(-1,1)
-        #y = y.values.reshape(-1,1)
+        if verbose:
+            print type(x), type(y), x.shape, y.shape
+
+        if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
+            return NameError("The input should be given as ndarray")
+
+
+        #if y.ndim <2:
+
         l_X, l_y = np.log(x + self.eps), np.log(y + self.eps)
         y_zero_one = (y>0.0).astype(int)
         sample_weight = None
@@ -58,12 +68,11 @@ class MixLinearModel(object):
             self.log_reg.fit(x, y_zero_one)
             sample_weight = self.log_reg.predict_proba(x)[:,1]
 
-
         # Linear regression under log mode.
         self.reg_model.fit(X=l_X, y=l_y, sample_weight=sample_weight)
-        fitted = self.reg_model.predict(l_X)
-        residual = (fitted - l_y)
-        self.kde.fit(residual)
+        self.fitted = self.reg_model.predict(l_X)
+        self.residual = (self.fitted - l_y)
+        self.kde.fit(self.residual)
         return self
 
     def predict(self, x, y, label=None):
@@ -76,12 +85,12 @@ class MixLinearModel(object):
 
         Returns:
         """
-        p_fitted = self.log_reg.predict_proba(x)[:,1]
+        logreg_pred = self.log_reg.predict_proba(x)[:,1]
         linear_pred = self.reg_model.predict(np.log(x+self.eps))
-        return self.__mixl(y, p_fitted, linear_pred)
+        return self.__mixl(y, logreg_pred, linear_pred)
 
 
-    def __mixl(self, y, p, linear_predictions):
+    def __mixl(self, y, logreg_prediction, linear_predictions):
 
         """
          - if RAIN = 0, $ -log (1-p_1)$
@@ -94,7 +103,7 @@ class MixLinearModel(object):
 
         """
         # This
-        p = p.reshape([-1, 1])
+        p = logreg_prediction.reshape([-1, 1])
         observations = y.reshape([-1, 1])
         predictions = linear_predictions.reshape([-1, 1])
 

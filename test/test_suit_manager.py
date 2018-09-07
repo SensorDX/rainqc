@@ -4,7 +4,7 @@ from test.test_RQC import TestRQC
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestPairwiseView))
-    suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestRQC))
+    #suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestRQC))
 
     return suite
 

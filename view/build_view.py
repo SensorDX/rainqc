@@ -16,20 +16,4 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     return df_formatted
 
 
-## steps for building the system.
-## 1. Check availability of the stations,
-## 2. Build views:
-##  - pairwise view maker,,,
-## - Query data and transform to array formats.
-
-
-def query_transform(data_source, **kwargs):
-     """
-     Query data from data source
-     Args:
-         data_source:
-         **kwargs:
-
-     Returns:
-
-     """
+#def pairwise_view(station1, station2, )

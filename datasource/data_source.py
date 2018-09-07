@@ -53,12 +53,14 @@ class DataSource(object):
 
 
 class LocalDataSource(DataSource):
-    local_project_path = "." #""../"
-
+    #local_project_path = "." #""../"
+    data_path = '.' #None
+    def __init__(self, dir_path):
+        LocalDataSource.data_path = dir_path
     @staticmethod
     def json_measurements(station_name):
-        full_path = os.path.join(LocalDataSource.local_project_path, "localdatasource/"
-                                                                     "rm_" + station_name + ".json")
+        full_path = os.path.join(LocalDataSource.data_path,'stations/'+
+                                 "rm_" + station_name + ".json")
         jj = json.load(open(full_path, "rb"))
         return jj
 
@@ -74,7 +76,7 @@ class LocalDataSource(DataSource):
     @staticmethod
     def station_list():
         station_list = [stn.split('_')[1].split('.json')[0] for stn in os.listdir(
-            os.path.join(LocalDataSource.local_project_path, 'localdatasource'))]
+            os.path.join(LocalDataSource.data_path, 'stations'))]
         return station_list
 
     @staticmethod
@@ -95,7 +97,7 @@ class LocalDataSource(DataSource):
     def nearby_stations(site_code, k=10, radius=500):
 
         stations = pd.read_csv(
-            os.path.join(LocalDataSource.local_project_path, "util/nearest_stations.csv"))  # Pre-computed value.
+            os.path.join(LocalDataSource.data_path, "nearest_stations.csv"))  # Pre-computed value.
         k_nearest = stations[(stations['from'] == site_code) & (stations['distance'] < radius)]
 
         k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)['to']  # [0:k]
@@ -105,6 +107,7 @@ class LocalDataSource(DataSource):
 
 if __name__ == '__main__':
     ll = LocalDataSource
+    ll.data_path = '../localdatasource'
     target_station = 'TA00025'
     print ll.nearby_stations(target_station)
     # Measurements:
