@@ -118,7 +118,8 @@ class MixLinearModel(object):
 
     def to_json(self, model_id="001", model_path="rainqc_model"):
 
-        model_config = {"model_id":model_id,
+        model_config = {
+            "model_id":model_id,
                         "kde_model":pickle.dumps(self.kde),
                         "logistic_model":pickle.dumps(self.log_reg),
                         "linear_model":pickle.dumps(self.reg_model)

@@ -31,6 +31,7 @@ glm = sm.GLM(y_binary,x,family=sm.families.Binomial(sm.families.links.logit)).fi
 print glm.summary()
 glm_fitted = glm.fittedvalues
 print glm_fitted[1:10]
+glm.save(open("test.glm",'w'))
 """
 The key difference b/n the glm of the statsmodels and logisticregression of sklearn is, by defualt the sklearn
 prediction outputs binary value, while the glm outputs probability.
