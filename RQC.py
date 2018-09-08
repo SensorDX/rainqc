@@ -6,11 +6,22 @@ from view.view import ViewFactory, ViewDefinition
 
 def pairwise_view(target_station, next_station, mismatch='error'):
     ## make sure the stations mismatch each  other
+    #target_station_len = len(target_station)
+
 
     if len(target_station) != len(next_station):
         return None #ValueError("Paired station mismatched")
     return ViewDefinition(y=target_station, x=next_station)
+def multipair_view(target_station, stations):
+    """
 
+    Args:
+        target_station:
+        stations:
+
+    Returns:
+
+    """
 def evaluate(model_list, sample_data):
     pass
 class RQC(object):
@@ -69,7 +80,7 @@ class RQC(object):
         else:
             nearby_stations = station_list
 
-        view_list = OrderedDict()
+        view_list = defaultdict()
         query_data = lambda station_name: self.data_source.measurements(station_name, self.variable,
                                                                         date_from=date_from, date_to=date_to,
                                                                         group=kwargs.get('group'))[self.variable].as_matrix()
@@ -81,14 +92,6 @@ class RQC(object):
 
         for station_name in nearby_stations:
             view_list[station_name] = pairwise_view(target_station, query_data(station_name))
-
-
-        #
-        #
-        # for view in self.view_registry.values():
-        #     vw = self.view_factory.create_view(view)
-        #     self.view_object_list[view] = vw.make_view(station_data[target_station],
-        #                                                station_data.values()[1:], label=station_data.keys())
 
         return view_list
 
@@ -126,8 +129,7 @@ class RQC(object):
         # return model_registry
         ## TODO: Add for training model of the separte pairwise operations.
 
-    def evaluate(self):
-        pass
+
 
     def score(self, model_registry, target_station, date_from, date_to, **kwargs):
         view_object_list = self.build_view(target_station, date_from, date_to, **kwargs)
