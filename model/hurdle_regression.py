@@ -17,23 +17,20 @@ class ModelFactory:
             return LinearRegression()
 
 
-
-
-
-
 class MixLinearModel(object):
 
     """
         Mixture of linear model.
         0/1 Hurdle model.
     """
-    def __init__(self):
-        self.reg_model = LinearRegression()
+    def __init__(self, linear_reg=LinearRegression(), log_reg = LogisticRegression(),
+                 kde =KernelDensity(kernel="gaussian")):
+        self.reg_model = linear_reg
         self.eps = 0.001
-        self.log_reg = LogisticRegression()
-        self.kde = KernelDensity(kernel="gaussian")
-        self.fitted = None
-        self.residual = None
+        self.log_reg = log_reg
+        self.kde = kde
+        self.fitted = False
+        self.residual = False
 
     def residual_plot(self, observed, true_value, fitted ):
         plt.scatter(true_value, np.log(observed))
@@ -44,7 +41,6 @@ class MixLinearModel(object):
 
     def fit(self, x, y, verbose=False):
         """
-
         Args:
             y: 1-D Nx1 ndarray observed value.
             x: NxD ndarry features.
@@ -77,11 +73,11 @@ class MixLinearModel(object):
 
     def predict(self, x, y, label=None):
         """
-
+        Predict log-likelihood of given observation under the trained model.
         Args:
-            y:
-            x:
-            label:
+            y: ndarray Ground truth observation.
+            x: ndarray matrix Features.
+            label: None,
 
         Returns:
         """
@@ -146,14 +142,16 @@ class MixLinearModel(object):
         joblib.dump(self.kde, os.path.join(current_model,"kde_model.sv"))
         joblib.dump(self.reg_model,os.path.join(current_model, "linear_model.sv"))
         joblib.dump(self.log_reg, os.path.join(current_model, "logistic_model.sv"))
-
-    def load(self, model_id="001", model_path="rainqc_model"):
+    @classmethod
+    def load(cls, model_id="001", model_path="rainqc_model"):
         loaded_model = os.path.join(model_path, model_id)
         #model_config = localdatasource.load(open(model_id+".localdatasource","rb"))
         if not os.path.exists(loaded_model):
             return ValueError("Directory for saved models don't exist")
 
-        self.reg_model = joblib.load(os.path.join(loaded_model,"linear_model.sv"))
-        self.kde = joblib.load(os.path.join(loaded_model,"kde_model.sv"))
-        self.log_reg = joblib.load(os.path.join(loaded_model,"logistic_model.sv")) #pickle.load(model_config['zerone'])
+        reg_model = joblib.load(os.path.join(loaded_model,"linear_model.sv"))
+        kde = joblib.load(os.path.join(loaded_model,"kde_model.sv"))
+        log_reg = joblib.load(os.path.join(loaded_model,"logistic_model.sv")) #pickle.load(model_config['zerone'])
+        mxll = MixLinearModel(linear_reg=reg_model, log_reg=log_reg, kde=kde)
+        return mxll
 

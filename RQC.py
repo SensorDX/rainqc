@@ -22,6 +22,12 @@ def multipair_view(target_station, stations):
     Returns:
 
     """
+
+    assert all(target_station.shape==n_station.shape for n_station in stations)
+    dt = np.hstack(stations)
+    return ViewDefinition(y=target_station, x = dt)
+
+
 def evaluate(model_list, sample_data):
     pass
 class RQC(object):
@@ -97,12 +103,15 @@ class RQC(object):
 
     def fit_from_view(self, view_list):
         model_list = defaultdict()
+        #model_list2 = defaultdict()
         for vw_id in view_list:
             current_vwd = view_list[vw_id]
             if current_vwd is not None:
                 model_list[vw_id] = self.model_factory.create_model(self.model).fit(current_vwd.x, current_vwd.y, True)
+               # model_list2[vw_id] = self.model_factory.create_model(self.model).fit(current_vwd.y, current_vwd.x, True)
+
         self.model_list = model_list
-        return model_list
+        return model_list #, model_list2)
 
     def fit(self, target_station, date_from, date_to, **kwargs):
 
@@ -129,7 +138,8 @@ class RQC(object):
         # return model_registry
         ## TODO: Add for training model of the separte pairwise operations.
 
-
+    def resultant_score(self, model_1, model_2):
+        pass
 
     def score(self, model_registry, target_station, date_from, date_to, **kwargs):
         view_object_list = self.build_view(target_station, date_from, date_to, **kwargs)
@@ -144,7 +154,28 @@ class RQC(object):
                     scores[vw_name] = model.predict(current_vw.x, current_vw.y)
 
         return scores
+    def save(self, path_name):
+        """
+        Save the QC model.
+        Args:
+            path_name: path to the save the models.
 
+        Returns:
+
+        """
+        pass
+    @classmethod
+    def load(cls, path_name):
+        """
+        Load trained RQC model.
+        Args:
+            path_name:
+
+        Returns: RQC model.
+
+        """
+        # make sure all available models are saved.
+        pass
 
 if __name__ == '__main__':
     from datasource.toy_datasource import ToyDataSource
@@ -153,24 +184,25 @@ if __name__ == '__main__':
     rqc.data_source = LocalDataSource(dir_path='./localdatasource') #ToyDataSource
     rqc.add_view('PairwiseView')
     rqc.add_model('MixLinear')
-    target_station = 'TA00025'
-    vw = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-05-01', group='D')
+    target_station = 'TA00056'
+    vw = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-12-01', group='D')
     #fitted_model = rqc.fit(target_station=target_station, date_from='2010-01-01', date_to='2010-10-01', group='D',
      #       pairwise=True)
+
     fitted_model = rqc.fit_from_view(vw)
+
     #print fitted_model.keys()
     import numpy as np
-   # print fitted_model.keys()
+    #print fitted_model.keys()
     #print len(vw), vw.keys(), [vv.x.shape for vv in vw.values()]
-    score = rqc.score_from_view(fitted_model, vw)
-
+    score_view = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-10-01', group='D')
+    score = rqc.score_from_view(fitted_model, score_view)
     #score = rqc.score(model_registry=fitted_model, target_station=target_station, date_from='2010-01-01', date_to='2010-10-01', group='D',
     #       pairwise=True, station_list =fitted_model.keys())
+
     ll = {}
     ff = {}
     for key in score:
-        ll[key]= -np.sum(np.log(score[key]))
-        #ff[key] = -np.sum(np.log(fitted_model[key]))
+        ll[key]= -np.log(score[key])
     print ll
-    #print score.values()
-    #print vw.values()[0].x
+

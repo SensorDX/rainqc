@@ -1,5 +1,4 @@
 
-
 ## Qeury data and build views based on the data.
 
 import numpy as np
@@ -12,8 +11,8 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     df.date = pd.to_datetime(df.date)
     if filter_year:
         df = df[df.date.dt.year == filter_year]
-    df_formatted = df.groupby(df.date.dt.dayofyear).agg({weather_variable:np.sum, "date":np.max}) #apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
+    df_formatted = df.groupby(df.date.dt.dayofyear).agg({weather_variable :np.sum, "date" :np.max})  # apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
     return df_formatted
 
 
-#def pairwise_view(station1, station2, )
+    # def pairwise_view(station1, station2, )

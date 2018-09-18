@@ -23,17 +23,11 @@ class ViewDefinition:
     def __init__(self, name=None, label=None, x=None, y=None):
         self.name = name
         self.label = label
-        if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
-            return NameError("The input should be given as ndarray")
+        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+            #return NameError("The input should be given as ndarray")
+            self.x = x.reshape(-1,1)
+            self.y = y.reshape(-1,1)
 
-        self.x = x.reshape(-1,1)
-        self.y = y.reshape(-1,1)
-    # def transform(self, x):
-    #     if options.get("diff"):
-    #         pass
-    #     if options.get("normalize"):
-    #         pass
-    #     pass
 
 class ViewFactory:
     @staticmethod
