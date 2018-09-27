@@ -1,6 +1,33 @@
 import numpy as np
-import pandas as pd
 from collections import defaultdict
+
+
+
+def pairwise_view(target_station, next_station, mismatch='error'):
+
+    if target_station is None or next_station is None:
+        return ValueError("The data is empty.")
+    if target_station.shape != next_station.shape:
+        return None #ValueError("Paired station mismatched")
+    return ViewDefinition(y=target_station, x=next_station)
+
+def multipair_view(target_station, stations):
+    """
+
+    Args:
+        target_station:
+        stations:
+
+    Returns:
+
+    """
+
+    assert all(target_station.shape==n_station.shape for n_station in stations)
+    dt = np.hstack(stations)
+    return ViewDefinition(y=target_station, x = dt)
+
+
+
 
 class View(object):
     def __init__(self):

@@ -35,7 +35,7 @@ class ToyDataSource(DataSource):
 
     @staticmethod
     def station_list():
-        stations = ['TA000'+str(i) for i in range(1, 20)]
+        stations = ['TA000'+str(i) for i in range(1, 50)]
         return stations
 
     @staticmethod
