@@ -48,7 +48,7 @@ prediction outputs binary value, while the glm outputs probability.
 ## Using the hurdel predict the fault level of a given stations, given the other stations.
 
 model.fit(x=x, y=y)
-fitted_value = -np.log(model.predict(x,y))
+fitted_value = model.predict(x,y)
 
 #roc_metric( model.log_reg.predict_proba(x)[:,1], y_binary) # debugging
 # insert faults to the
@@ -61,13 +61,11 @@ def synthetic_fault(observations, plot=False):
     faulty_day = abnormal_report + rainy_days
     lbl = np.zeros([dt.shape[0]])
     lbl[faulty_day] = 1.0
-
-
     return dt, lbl
 
 plt.subplot(321)
 dt, lbl = synthetic_fault(y, True)
-ll_ob = -np.log(model.predict(x,y=dt))
+ll_ob = model.predict(x,y=dt)
 print roc_metric(ll_ob, lbl, False)
 #model.residual_plot(np.log(observed_value+model.eps), np.log(y+model.eps), fitted_value)
 #print roc_metric()
@@ -81,7 +79,7 @@ def plot_synthetic(dt, y):
     plt.legend(loc='best')
     plt.show()
 def evaluate_model(trained_model, x_test, y_test, lbl):
-    ll_ob = -np.log(trained_model.predict(x_test, y=y_test))
+    ll_ob = trained_model.predict(x_test, y=y_test)
     return roc_metric(ll_ob, lbl)
 ## Train using pairwise.
 
@@ -91,7 +89,7 @@ x_t, y_t = test_data.ix[:, 2:].as_matrix(), test_data.ix[:,1:2].as_matrix()
 #insert faults on the test
 y_insert, t_lbl = synthetic_fault(y_t)
 print x_t.shape
-ll_test = -np.log(model.predict(x=x_t, y=y_insert))
+ll_test = model.predict(x=x_t, y=y_insert)
 print roc_metric(ll_test, t_lbl, False)
 
 models ={}
@@ -102,7 +100,7 @@ for col in colmn:
     train_col = df[col].as_matrix().reshape(-1, 1)
     models[col] = MixLinearModel().fit(x=train_col, y=y)
     #plt.subplot(3,2,2)
-    predictions.append(-np.log(models[col].predict(train_col, y=dt)))
+    predictions.append(models[col].predict(train_col, y=dt))
     roc[col] = evaluate_model(models[col], train_col, dt, lbl)
 pred = np.hstack(predictions)
 print "AUC of average likelihood"
@@ -116,7 +114,7 @@ roc_test = {}
 t_predictions = []
 for col in colmn:
      roc_test[col] = evaluate_model(models[col], test_data[col].as_matrix().reshape(-1,1), y_t, t_lbl)
-     t_predictions.append(-np.log(models[col].predict(test_data[col].as_matrix().reshape(-1,1), y=y_t)))
+     t_predictions.append(models[col].predict(test_data[col].as_matrix().reshape(-1,1), y=y_t))
 #ll_aggregate =
 print roc_metric(np.mean(np.hstack(t_predictions), axis=1), t_lbl)
 print "AUC of individual stations "

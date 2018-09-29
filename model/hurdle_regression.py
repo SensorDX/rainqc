@@ -6,7 +6,6 @@ import pickle
 import os
 import matplotlib.pylab as plt
 from sklearn.externals import joblib
-import seaborn as sbn
 import numpy as np
 
 
@@ -80,6 +79,7 @@ class MixLinearModel(object):
 
         Returns:
         """
+
         logreg_pred = self.log_reg.predict_proba(x)[:, 1]
         linear_pred = self.reg_model.predict(np.log(x + self.eps))
         return self.__mixl(y, logreg_pred, linear_pred)
@@ -91,25 +91,25 @@ class MixLinearModel(object):
          - if RAIN > 0, $ -log [p_1 \frac{P(log(RAIN + \epsilon)}{(RAIN + \epsilon)}]$
         Args:
 
-         observations: ground observation.
-         p1: 0/1 prediction model.
-         predictions: fitted values for the log(rain + epsilon) model
+         y: (np.array) observations.
+         logreg_prediction:(np.array) fitted values from logistic regression (0/1 model).
+         linear_predictions:(np.array) fitted values from linear regression on log scale.
 
         """
-        # This
+        # Reshape the data
         p = logreg_prediction.reshape([-1, 1])
         observations = y.reshape([-1, 1])
         predictions = linear_predictions.reshape([-1, 1])
 
         zero_rain = np.multiply((1 - p), (observations == 0))
-        non_zero = np.divide(np.multiply(p,
-                                         np.exp(self.kde.score_samples(
-                                             predictions - np.log(observations + self.eps))).reshape(
-                                             [-1, 1])),
-                             abs(observations + self.eps))
+        # density of residual and convert to non-log value.
+        residual_density = np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(-1,1)
 
-        result = zero_rain + non_zero
-        return result
+        non_zero_rain = np.divide(np.multiply(p, residual_density),
+                                         (observations + self.eps))
+
+        result = zero_rain + non_zero_rain
+        return -np.log(result)
 
     def to_json(self, model_id="001", model_path="rainqc_model"):
 
