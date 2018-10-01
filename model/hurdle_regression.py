@@ -138,7 +138,7 @@ class MixLinearModel(object):
         non_zero = np.divide(np.multiply(p,
                                          np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(
                                              [-1, 1])),
-                             abs(observations + self.eps))
+                             abs(observations + self.eps))  ##TODO: Absolute value check.
 
         result = zero_rain + non_zero
         return result
