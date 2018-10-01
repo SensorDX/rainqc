@@ -9,9 +9,12 @@ from data_source import DataSource
 project_path ="/home/tadeze/projects/sensordx/rainqc"
 
 class CloudantAuthentication:
-    config = json.load(open(os.path.join(project_path,"util/config.json"),"rb"))["cloudant"]
+    config = json.load(open(os.path.join(project_path,"util/config.localdatasource"),"rb"))["cloudant"]
     URL = config["URL"] #'https://tahmobluemix.cloudant.com/'
-    client = Cloudant(config["USERNAME"], config["PASSWORD"], account=config["ACCOUNT_NAME"], connect=True)
+    client = Cloudant(config["USERNAME"],
+                      config["PASSWORD"],
+                      account=config["ACCOUNT_NAME"],
+                      connect=True)
     @classmethod
     def open_session(cls):
         cls.session = cls.client.session()
@@ -42,6 +45,7 @@ class BluemixSource(DataSource):
         docs = current_station.get_query_result(selector)
         CloudantAuthentication.close()
         return docs
+
 if __name__ == '__main__':
     js = BluemixSource.get_weather_data(station_name='ta00020', variable='pr',
                                         date_range=[u'2016-08-11', u'2016-08-12'])
@@ -100,8 +104,8 @@ def extract_station(station_name='ta00001', date_from=u'2012-08-11', date_to=u'2
 #     if qeury_len < 1:
 #         print qeury_len, " Size of the query"
 #         return
-#     # json.dump(result_doc[:], open(os.path.join(
-#     #     output_path, station_name + ".json"), "w"))
+#     # localdatasource.dump(result_doc[:], open(os.path.join(
+#     #     output_path, station_name + ".localdatasource"), "w"))
 #     # # cv_todf = convert_to_df(result_doc)
 #     # Save csv
 #     # cv_todf.to_csv(os.path.join(output_path,station_name+".csv"),index=False)

@@ -1,8 +1,5 @@
-import pandas as pd
 import numpy as np
-from util.stations_tools import nearby_stations
-from util.data_source import LocalDataSource
-import json
+import pandas as pd
 
 
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=2017):
@@ -15,7 +12,7 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     return df_formatted
 
 
-class FeatureExtraction:
+class PairwiseView:
     def __init__(self, data_source=None, radius=300, num_k_station=5, variable="pr"):
         self.X = None
         self.y = None
@@ -25,7 +22,7 @@ class FeatureExtraction:
         self.variable = variable
         self.data_source = data_source
 
-    def make_features(self, target_station, date_range=[]):
+    def make_view(self, target_station, date_from, date_to):
         """
 
         Args:
@@ -35,19 +32,21 @@ class FeatureExtraction:
         Returns:
 
         """
-        json_data = self.data_source.get_weather_data(target_station, self.variable, date_range=date_range)
-        t_station = json_to_df(json_data, weather_variable=self.variable)
-        #print t_station
+        t_station = self.data_source.measurements(target_station, self.variable, date_from=date_from, date_to=date_to,
+                                                  group='D')
+
         self.y, self.label = t_station[self.variable].values.reshape(-1, 1), t_station['date']  # .values.reshape(-1, 1)
 
         k_nearest_station = self.data_source.nearby_stations(target_station, self.num_k_station, self.radius)
+        print k_nearest_station
         stn_list = []
         for k_station in k_nearest_station:
-            df_json = self.data_source.get_weather_data(k_station, self.variable, date_range=date_range)
-            df = json_to_df(df_json, weather_variable=self.variable)
-            df = df[self.variable].values.reshape(-1, 1)  # df.date.dt.year == 2017].value.values.reshape(-1, 1)
-            if df.shape[0] == self.y.shape[0]:
-                stn_list.append(df)
+             k_station_data = self.data_source.measurements(k_station, self.variable, date_from=date_from, date_to=date_to,
+                                                  group='D')
+             k_station_data = k_station_data[self.variable].values.reshape(-1,1)
+
+             if k_station_data.shape[0] == self.y.shape[0]:
+                stn_list.append(k_station_data)
         if len(stn_list) < 2:
             return NameError("There are less than 2 stations with equal number of observation as the target station.")
         self.X = np.hstack(stn_list)
@@ -58,3 +57,4 @@ class FeatureExtraction:
     def to_csv(self):
         df = pd.concat([pd.DataFrame(self.label), pd.DataFrame(self.y), pd.DataFrame(self.X)], axis=1)
         return df
+##TODO: Pairwise view need to be fixed, with $n$ nearby station, there should be $n$ models

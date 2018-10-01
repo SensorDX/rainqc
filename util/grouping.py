@@ -10,7 +10,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     dlon = deg2rad(lon2 - lon1)
     a = np.sin(dlat / 2) * np.sin(dlat / 2) + np.cos(deg2rad(lat1)) * \
     np.cos(deg2rad(lat2)) * np.sin(dlon / 2) * np.sin(dlon / 2)
-    c = 2 * np.atan2(np.sqrt(a), np.sqrt(1-a))
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
     d = earth_radius * c #// Distance in km
     return d
 
