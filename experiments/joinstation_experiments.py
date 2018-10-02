@@ -7,11 +7,7 @@ import numpy as np
 from sklearn.linear_model import Ridge, Lasso, HuberRegressor
 
 
-# Parameters
-FAULT_TYPE = 'BOTH' #could be 'Spike','Flat', or 'Both'
-K = 10
-ALPHA = 0.05
-ridge_alpha = 0.3
+
 def asmatrix(x):
     return x.as_matrix().reshape(-1,1)
 
@@ -36,10 +32,10 @@ def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
         dt[abnormal_days] = 0.0
     elif f_type =='Spike':
         abnormal_days = ix[:num_faults]
-        dt[abnormal_days] = 10.0
+        dt[abnormal_days] = 20.0
     else:
         abnormal_days_spike = ix[:(num_faults/2)]
-        dt[abnormal_days_spike] = 10.0
+        dt[abnormal_days_spike] = 20.0
         abnormal_days_flat = ix[-(num_faults/2 + 2):-2]
         dt[abnormal_days_flat] = 0.0
         abnormal_days = np.concatenate([abnormal_days_spike, abnormal_days_flat])
@@ -54,7 +50,7 @@ def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
         plt.plot(dt, '.r', label="faults")
         plt.plot(observations, '.b', label="Observations")
         plt.legend(loc='best')
-        plt.show()
+        #plt.show()
     return dt, lbl
 
 def plot_synthetic(dt, y):
@@ -69,13 +65,13 @@ def evaluate_model(trained_model, x_test, y_test, lbl):
 
     return roc_metric(ll_ob, lbl)
 
-def combine_models(trained_models, df, y_target,y_inj, lable, log_vote=True):
+def combine_models(trained_models, df, y_target,y_inj, lable, log_vote=True, plot=True):
     y_test = asmatrix(df[y_target])
     #y_inj, lable = synthetic_fault(asmatrix(df[y_target]))
 
     log_pred = {}
     linear_pred = {}
-    print "Number of models", trained_models.keys()
+    #print "Number of models", trained_models.keys()
     for col in trained_models:
         model = trained_models[col]
         x_test = df[col].as_matrix().reshape(-1, 1)
@@ -95,17 +91,31 @@ def combine_models(trained_models, df, y_target,y_inj, lable, log_vote=True):
         ll.append(result)
     combined_result = np.mean(np.hstack(ll), axis=1)
     #print combined_result
-    print roc_metric(combined_result, lable)
+    if plot:
+        test_plot(combined_result, lable, y_test)
+    return roc_metric(combined_result, lable)
+
+def test_plot(ll_test, t_lbl, y):
+
+    ix = np.argsort(ll_test, axis=0)[-10:]
+    injx = np.where(t_lbl == 1.0)[0]
+    plt.plot(y, '.b', label="observations")
+    plt.plot(injx, y[injx], '.r', label="injected faults")
+    plt.plot(ix, y[ix].reshape(-1), 'oy', mfc='none', label="detected faults")
+    #plt.ylabel('Rain (mm)')
+    #plt.xlabel("Days")
+    plt.legend(loc='best', prop={'size':6})
 
 
-
-
-def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl):
+def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl, plot=False):
 
     y, x = asmatrix(test_data[target_station]), test_data[k_station].as_matrix()
     #y_inj, t_lbl = synthetic_fault(y, plot=True, f_type="Both", alpha=ALPHA)
     ll_test = trained_model.predict(x=x, y=y_inj)
-    print roc_metric(ll_test, t_lbl, False)
+    if plot:
+        test_plot(ll_test, t_lbl, y)
+
+    return roc_metric(ll_test, t_lbl, False)
 
 
 def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
@@ -134,23 +144,43 @@ def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
         #training_prediction = [mdl.predict(asmatrix(train_data[stn]), y=y_inj) for stn, mdl in models.iteritems()]
         return models, k_station
 
-
-def main_test():
+from collections import OrderedDict
+train_data = pd.read_csv('tahmostation2016.csv')
+test_data = pd.read_csv('tahmostation2017.csv')
+def main_test(target_station, save_fig=True):
     ## Experiment on the station performance.
-    train_data = pd.read_csv('tahmostation2016.csv')
-    test_data = pd.read_csv('tahmostation2017.csv')
-    target_station = "TA00020"
+
+    #target_station = "TA00077"
     # joint detection.
-
+    train_result = {}
+    train_result['station'] = target_station
+    train_result['num_k'] = K
+    train_result['anom']  = ALPHA
     #insert synthetic faults
+    test_result = train_result.copy()
+    plt.subplot(211)
+    plt.title(target_station)
+    plt.xlabel('2016')
     y_train, lbl_train = synthetic_fault(train_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+    plt.subplot(212)
+    plt.xlabel('2017')
     y_test, lbl_test = synthetic_fault(test_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+    if save_fig:
+        plt.savefig("plots/"+target_station+".jpg")
+    plt.close()
 
+    plt.subplot(321)
+    plt.title('Training')
     model, k_station = train(target_station=target_station, num_k=K, train_data=train_data)
     print "Training accuracy"
-    test(model, target_station=target_station, k_station=k_station, test_data=train_data, y_inj=y_train, t_lbl=lbl_train)
+    train_result['train_training_auc'] = test(model, target_station=target_station, k_station=k_station,
+                                                  test_data=train_data, y_inj=y_train, t_lbl=lbl_train, plot=True)
+    plt.ylabel('Joint stations',fontsize=6)
+    plt.subplot(322)
+    plt.title('Test')
     print "Test data set accuracy"
-    test(model, target_station=target_station, k_station=k_station, test_data=test_data, y_inj=y_test, t_lbl=lbl_test)
+    train_result['test_joint_auc'] = test(model, target_station=target_station, k_station=k_station, test_data=test_data,
+                                          y_inj=y_test, t_lbl=lbl_test, plot=True)
     #
 
 
@@ -158,12 +188,21 @@ def main_test():
     print "\nPairwise result"
     models, k_station = train(target_station=target_station, num_k=K, train_data=train_data, pairwise=False)
     print "Training accuracy"
-    combine_models(models, train_data, target_station, y_train, lbl_train, log_vote=True)
-    combine_models(models, train_data, target_station, y_train, lbl_train, log_vote=False)
+    plt.subplot(323)
+    plt.ylabel("Pairwise avg. Logistic vote", fontsize=6)
+    train_result['train_pairwise_vote_auc'] = combine_models(models, train_data, target_station, y_train, lbl_train, log_vote=True)
+    plt.subplot(325)
+    plt.ylabel("Pairwise avg ll", fontsize=6)
+    train_result['train_pairwise_auc'] = combine_models(models, train_data, target_station, y_train, lbl_train, log_vote=False)
     print "Testing accuracy "
-    combine_models(models, test_data, target_station, y_test, lbl_test, log_vote=True)
-    combine_models(models, test_data, target_station, y_test, lbl_test, log_vote=False)
-    #
+    plt.subplot(324)
+    train_result['test_pairwise_vote_auc'] = combine_models(models, test_data, target_station, y_test, lbl_test, log_vote=True)
+    plt.subplot(326)
+    train_result['test_pairwise_auc'] = combine_models(models, test_data, target_station, y_test, lbl_test, log_vote=False)
+    #plt.show()
+    plt.savefig("detectionplot/"+target_station+".jpg")
+    plt.close()
+    return train_result
 
 
 def main():
@@ -232,9 +271,23 @@ def main():
     print roc_metric(result, t_lbl)
 
 if __name__ == '__main__':
+    # Parameters
+    FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
+    K = 3
+    ALPHA = 0.05
+    ridge_alpha = 0.0
     #main()
     #print nearby_stations('TA00020')
-    main_test()
-    #target_station = "TA00077"
+    all_stations = train_data.columns.tolist()
+    #print all_stations
+    #target_station = "TA00025"
+    #main_test(target_station, save_fig=False)
+    #
+    all_auc = []
+    for target_station in all_stations[:]:
+        all_auc += [main_test(target_station, save_fig=False)]
+    results = pd.DataFrame(all_auc)
+    results.to_csv("k_"+str(K)+"_results.csv",index=False)
+
     #model, k_station = train(target_station=target_station, num_k=5)
     #test(model, target_station=target_station, k_station=k_station)
