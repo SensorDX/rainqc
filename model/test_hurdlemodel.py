@@ -6,7 +6,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 import statsmodels.api as sm
 import matplotlib.pylab as plt
 import numpy as np
-
+from sklearn.linear_model import Ridge, Lasso, HuberRegressor
 
 # input data
 
@@ -15,7 +15,7 @@ x, y = df.ix[:, 2:].as_matrix(), df.ix[:,1:2].as_matrix()
 print x.shape ,y.shape
 # zero-one label
 y_binary = (y>0.0).astype(int)
-model = MixLinearModel()
+model = MixLinearModel(linear_reg=Ridge(alpha=0.5))
 
 # fit logistic regression model to 0/1 model
 # logit = LogisticRegression(fit_intercept=False, C=1e9)
@@ -80,8 +80,10 @@ def plot_synthetic(dt, y):
     plt.show()
 def evaluate_model(trained_model, x_test, y_test, lbl):
     ll_ob = trained_model.predict(x_test, y=y_test)
+
     return roc_metric(ll_ob, lbl)
 ## Train using pairwise.
+
 
 ## Using test data from another years.
 test_data  = pd.read_csv('sampletahmo_test.csv')
@@ -98,8 +100,9 @@ roc = {}
 predictions = []
 for col in colmn:
     train_col = df[col].as_matrix().reshape(-1, 1)
-    models[col] = MixLinearModel().fit(x=train_col, y=y)
+    models[col] = MixLinearModel(linear_reg=Ridge(alpha=0.5)).fit(x=train_col, y=y)
     #plt.subplot(3,2,2)
+
     predictions.append(models[col].predict(train_col, y=dt))
     roc[col] = evaluate_model(models[col], train_col, dt, lbl)
 pred = np.hstack(predictions)
@@ -107,6 +110,8 @@ print "AUC of average likelihood"
 print roc_metric(np.sum(pred, axis=1), lbl)
 print "AUC of individual stations"
 print roc
+
+
 
 print "AUC of test dataset for 2017"
 # #test_roc = roc_metric(ll_test, t_lbl, plot=True)

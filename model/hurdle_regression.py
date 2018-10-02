@@ -26,7 +26,7 @@ class MixLinearModel(object):
 
     def __init__(self, linear_reg=LinearRegression(), log_reg=LogisticRegression(),
                  kde=KernelDensity(kernel="gaussian")):
-        self.reg_model = linear_reg
+        self.linear_reg = linear_reg
         self.eps = 0.001
         self.log_reg = log_reg
         self.kde = kde
@@ -63,8 +63,8 @@ class MixLinearModel(object):
             sample_weight = self.log_reg.predict_proba(x)[:, 1]
 
         # Linear regression under log mode.
-        self.reg_model.fit(X=l_x, y=l_y, sample_weight=sample_weight)
-        self.fitted = self.reg_model.predict(l_x)
+        self.linear_reg.fit(X=l_x, y=l_y, sample_weight=sample_weight)
+        self.fitted = self.linear_reg.predict(l_x)
         self.residual = (self.fitted - l_y)
         self.kde.fit(self.residual)
         return self
@@ -80,11 +80,11 @@ class MixLinearModel(object):
         Returns:
         """
 
-        logreg_pred = self.log_reg.predict_proba(x)[:, 1]
-        linear_pred = self.reg_model.predict(np.log(x + self.eps))
-        return self.__mixl(y, logreg_pred, linear_pred)
+        log_pred = self.log_reg.predict_proba(x)[:, 1]
+        linear_pred = self.linear_reg.predict(np.log(x + self.eps))
+        return self.mixl(y, log_pred, linear_pred)
 
-    def __mixl(self, y, logreg_prediction, linear_predictions):
+    def mixl(self, y, logreg_prediction, linear_predictions):
 
         """
          - if RAIN = 0, $ -log (1-p_1)$
@@ -117,14 +117,14 @@ class MixLinearModel(object):
             "model_id": model_id,
             "kde_model": pickle.dumps(self.kde),
             "logistic_model": pickle.dumps(self.log_reg),
-            "linear_model": pickle.dumps(self.reg_model)
+            "linear_model": pickle.dumps(self.linear_reg)
         }
         json.dump(model_config, open(os.path.join(model_path, model_id + ".localdatasource"), "wb"))
 
     def from_json(self, model_id="001", model_path="rainqc_model"):
         js = json.load(os.path.join(model_path, model_id + ".localdatasource"), "rb")
         self.kde = pickle.loads(js['kde_model'])
-        self.reg_model = pickle.loads(js['linear_model'])
+        self.linear_reg = pickle.loads(js['linear_model'])
         self.log_reg = pickle.loads(js['logistic_model'])
 
     def save(self, model_id="001", model_path="rainqc_model"):
@@ -133,13 +133,13 @@ class MixLinearModel(object):
         Returns:
 
         """
-        # model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.reg_model}
+        # model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.linear_reg}
         # localdatasource.dump(model_config,open(model_id+".localdatasource","wb"))
         current_model = os.path.join(model_path, model_id)
         if not os.path.exists(current_model):
             os.makedirs(current_model)
         joblib.dump(self.kde, os.path.join(current_model, "kde_model.sv"))
-        joblib.dump(self.reg_model, os.path.join(current_model, "linear_model.sv"))
+        joblib.dump(self.linear_reg, os.path.join(current_model, "linear_model.sv"))
         joblib.dump(self.log_reg, os.path.join(current_model, "logistic_model.sv"))
 
     @classmethod

@@ -83,10 +83,10 @@ def main_test():
     y,x = df.iloc[:,1].as_matrix(), df.iloc[:,2:].as_matrix()
 
     mixl = MixLinearModel()
-    mixl.reg_model.fit(x, y)
+    mixl.linear_reg.fit(x, y)
     yz = (y > 0.5).astype(int)
     mixl.log_reg.fit(x, yz)
-    res = y.reshape(-1, 1) - mixl.reg_model.predict(x).reshape(-1, 1)
+    res = y.reshape(-1, 1) - mixl.linear_reg.predict(x).reshape(-1, 1)
     # print res, res.shape
     # mixl.kde.fit(res)
     # print mixl.kde.score_samples(y.reshape(-1,1))
