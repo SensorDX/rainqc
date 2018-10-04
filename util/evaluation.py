@@ -16,6 +16,10 @@ def roc_metric(pred, obs, plot=False):
         plt.show()
     return round(auc_score,3)
 
+def precision_recall(pred, obs, plot=False):
+    # Precision at @k recall,
+    mt.precision_recall_curve(obs, pred)
+
 #
 # def insert_faults():
 #     abnormal_report = range(200, 210)  # large abnormal rainfall report.

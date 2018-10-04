@@ -21,13 +21,92 @@ def nearby_stations(site_code, k=10, radius=500):
     return k_nearest.tolist() #available_stations
 
 
-def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
+def random_rainy_days(faults=5):
+    w = np.random.randn(100) + 0.6
+    r = (w>0).astype(int)
+    print r
+    x = r.copy()
+    rainy_day = np.where(r==1)[0]
+    d = np.random.choice(rainy_day ,faults)
+    print "injected index",d
+    indx = []
+    done = False
+    for i, ix in enumerate(d):
+        mxdays = 5
+        x[ix] = 9
+        indx.append(ix)
+        j = ix +1
+        while((mxdays>0) and x[j]==1):
+            x[j] = 9
+            mxdays -=1
+            indx.append(j)
+            j +=1
+            if len(indx)>=faults:
+                done = True
+                break
+
+        if done:
+            #len(indx)>=faults:
+            break
+
+    print "after injection"
+    print indx
+    print x
+
+def synthetic_fault(observations, plot=True, alpha=0.01, f_type='Flat'):
+
+    num_faults = int(np.ceil(alpha * len(observations)))
+    # insert flatline
+    print "Total anomalies", num_faults
+    threshold = 10.0
+    dt = observations.copy()
+    rainy_day = np.where(dt > threshold)[0]
+    d = np.random.choice(rainy_day, num_faults)
+    print "injected index", d
+    injected_indx = []
+    done = False
+    for i, ix in enumerate(d):
+        if ix in injected_indx:
+            continue
+        mxdays = 5
+        dt[ix] = 0.0
+        injected_indx.append(ix)
+        j = ix + 1
+        while ((mxdays > 0) and dt[j]>threshold):
+            dt[j] = 0.0
+            mxdays -= 1
+            injected_indx.append(j)
+            j += 1
+            if len(injected_indx) >= num_faults:
+                done = True
+                break
+
+        if done:
+            # len(indx)>=faults:
+            break
+    lbl = np.zeros([dt.shape[0]])
+    lbl[injected_indx] = 1.0
+    if plot:
+        #plt.plot(dt, '.r', label="faults")
+
+        plt.plot(observations, '.b', label="Observations")
+        plt.plot(injected_indx, dt[injected_indx], '.r', label="faults")
+
+        plt.legend(loc='best')
+        #plt.show()
+    #print injected_indx
+    return dt, lbl
+
+
+
+def synthetic_fault_old(observations, plot=False, alpha=0.01, f_type='Flat'):
     num_faults = int(np.ceil(alpha*len(observations)))
     # insert flatline
     print "Total anomalies", num_faults
     ix = np.argsort(observations,axis=0)
     dt = observations.copy()
     if f_type == 'Flat':
+        rainy_days = np.where(observations>0.05)
         abnormal_days = ix[-(num_faults+2):-2]
         dt[abnormal_days] = 0.0
     elif f_type =='Spike':
@@ -66,9 +145,9 @@ def evaluate_model(trained_model, x_test, y_test, lbl):
     return roc_metric(ll_ob, lbl)
 
 def combine_models(trained_models, df, y_target,y_inj, lable, log_vote=True, plot=True):
-    y_test = asmatrix(df[y_target])
+    #y_test = asmatrix(df[y_target])
     #y_inj, lable = synthetic_fault(asmatrix(df[y_target]))
-
+    y_test = asmatrix(y_inj)
     log_pred = {}
     linear_pred = {}
     #print "Number of models", trained_models.keys()
@@ -113,12 +192,12 @@ def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl, plot
     #y_inj, t_lbl = synthetic_fault(y, plot=True, f_type="Both", alpha=ALPHA)
     ll_test = trained_model.predict(x=x, y=y_inj)
     if plot:
-        test_plot(ll_test, t_lbl, y)
+        test_plot(ll_test, t_lbl, asmatrix(y_inj))
 
     return roc_metric(ll_test, t_lbl, False)
 
 
-def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
+def train( train_data,target_station="TA00020", num_k=5, pairwise=True, ridge_alpha=0.0):
 
     k_station = nearby_stations(target_station, k=num_k)
     y, x = train_data[target_station].as_matrix().reshape(-1,1), train_data[k_station].as_matrix()
@@ -127,7 +206,7 @@ def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
 
     if pairwise:
 
-        model = MixLinearModel(linear_reg=Ridge(alpha=0.0))
+        model = MixLinearModel(linear_reg=Ridge(alpha=ridge_alpha))
         model.fit(x=x, y=y)
         # y_inj, lable = synthetic_fault(train_data[target_station])
         # ll_ob = model.predict(x, y=y_inj)
@@ -139,7 +218,7 @@ def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
         for stn in k_station:
 
             x_p = train_data[stn].as_matrix().reshape(-1,1)
-            model = MixLinearModel(linear_reg=Ridge(alpha=0.0))
+            model = MixLinearModel(linear_reg=Ridge(alpha=ridge_alpha))
             models[stn] = model.fit(x_p, y)
         #training_prediction = [mdl.predict(asmatrix(train_data[stn]), y=y_inj) for stn, mdl in models.iteritems()]
         return models, k_station
@@ -147,6 +226,32 @@ def train( train_data,target_station="TA00020", num_k=5, pairwise=True):
 from collections import OrderedDict
 train_data = pd.read_csv('tahmostation2016.csv')
 test_data = pd.read_csv('tahmostation2017.csv')
+
+
+def regularization_test(target_station="TA00069"):
+    #target_station = "TA0069"
+    # result = {}
+    # result['station'] = target_station
+    # result['num_k'] = K
+    # result['anom'] = ALPHA
+
+    y_train, lbl_train = synthetic_fault(train_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+    y_test, lbl_test = synthetic_fault(test_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+    alpha_ranges = [0.0, 0.3, 0.9, 30, 1e2, 1e3, 1e4, 1e5]
+    results = []
+    for alpha in alpha_ranges:
+        result= {}
+        model, k_station = train(target_station=target_station, num_k=K, train_data=train_data, ridge_alpha=alpha)
+        result['alpha'] = alpha
+        result['train_auc'] = test(model, target_station=target_station, k_station=k_station,
+                                               test_data=train_data, y_inj=y_train, t_lbl=lbl_train, plot=False)
+        result['test_auc'] = test(model, target_station=target_station, k_station=k_station,
+                                              test_data=test_data,
+                                              y_inj=y_test, t_lbl=lbl_test, plot=False)
+        results.append(result)
+    return results
+
+
 def main_test(target_station, save_fig=True):
     ## Experiment on the station performance.
 
@@ -173,7 +278,7 @@ def main_test(target_station, save_fig=True):
     plt.title('Training')
     model, k_station = train(target_station=target_station, num_k=K, train_data=train_data)
     print "Training accuracy"
-    train_result['train_training_auc'] = test(model, target_station=target_station, k_station=k_station,
+    train_result['train_joint_auc'] = test(model, target_station=target_station, k_station=k_station,
                                                   test_data=train_data, y_inj=y_train, t_lbl=lbl_train, plot=True)
     plt.ylabel('Joint stations',fontsize=6)
     plt.subplot(322)
@@ -220,7 +325,7 @@ def main():
     model = MixLinearModel(linear_reg=Ridge(alpha=0.5))
     model.fit(x=x, y=y)
 
-    dt, lbl = synthetic_fault(y, True)
+    dt, lbl = synthetic_fault_flatline(y, True)
     ll_ob = model.predict(x, y=dt)
     print roc_metric(ll_ob, lbl, False)
 
@@ -270,24 +375,43 @@ def main():
     result = combine_models(models, test_data, y_t)
     print roc_metric(result, t_lbl)
 
+
+
+
+
+# if  __name__ == '__main__':
+#     random_rainy_days(7)
+
+
+#
 if __name__ == '__main__':
     # Parameters
     FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
-    K = 3
-    ALPHA = 0.05
+    K = 5
+    ALPHA = 0.02
     ridge_alpha = 0.0
     #main()
     #print nearby_stations('TA00020')
     all_stations = train_data.columns.tolist()
     #print all_stations
-    #target_station = "TA00025"
-    #main_test(target_station, save_fig=False)
+    target_station = "TA00025"
+    print main_test(target_station, save_fig=True)
     #
-    all_auc = []
-    for target_station in all_stations[:]:
-        all_auc += [main_test(target_station, save_fig=False)]
-    results = pd.DataFrame(all_auc)
-    results.to_csv("k_"+str(K)+"_results.csv",index=False)
+
+    # all_auc = []
+    # for target_station in all_stations[:]:
+    #     all_auc += [main_test(target_station, save_fig=False)]
+    # results = pd.DataFrame(all_auc)
+    # results.to_csv("k_"+str(K)+"_results.csv",index=False)
+
+
+
+
+    # Regularization expriments
+    #target_station = "TA00025"
+    #reg = pd.DataFrame(regularization_test(target_station))
+    #reg.to_csv(target_station+"regularization.csv", index=False)
 
     #model, k_station = train(target_station=target_station, num_k=5)
     #test(model, target_station=target_station, k_station=k_station)
+
