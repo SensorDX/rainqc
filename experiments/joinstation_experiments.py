@@ -420,9 +420,8 @@ def tune_k(target_station):
         mn = merge_two_dicts(mn, vr)
         mn["k"] = k
         all_result.append(mn)
+    return all_result
 
-    dx = pd.DataFrame(all_result)
-    dx.to_csv("k_tunining.csv",index=False)
 
 
 
@@ -446,14 +445,20 @@ if __name__ == '__main__':
     # print all_stations
     target_station = "TA00025"
     #print main_test(target_station, save_fig=True)
-    tune_k(target_station)
+    #tune_k(target_station)
     #
 
     # all_auc = []
-    # for target_station in all_stations[:]:
-    #     all_auc += [main_test(target_station, save_fig=False)]
-    # results = pd.DataFrame(all_auc)
-    # results.to_csv("k_"+str(K)+"_results.csv",index=False)
+    all_result = []
+    for target_station in all_stations[:]:
+         #all_auc += [main_test(target_station, save_fig=False)]
+         all_result +=tune_k(target_station)
+         print target_station
+    dx = pd.DataFrame(all_result)
+    dx.to_csv("all_station_k_tunining.csv", index=False)
+
+    #results = pd.DataFrame(all_auc)
+    #results.to_csv("k_"+str(K)+"_results.csv",index=False)
 
 
 
