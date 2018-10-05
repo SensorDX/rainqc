@@ -309,7 +309,7 @@ def main():
     model = MixLinearModel(linear_reg=Ridge(alpha=0.5))
     model.fit(x=x, y=y)
 
-    dt, lbl = synthetic_fault_flatline(y, True)
+    dt, lbl = synthetic_fault(y, True)
     ll_ob = model.predict(x, y=dt)
     print roc_metric(ll_ob, lbl, False)
 
@@ -420,6 +420,9 @@ def tune_k(target_station):
         mn = merge_two_dicts(mn, vr)
         mn["k"] = k
         all_result.append(mn)
+    dx = pd.DataFrame(all_result)
+    dx.to_csv(target_station+"_all_station_k_tunining.csv", index=False)
+
     return all_result
 
 
