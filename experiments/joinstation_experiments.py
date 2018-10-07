@@ -11,8 +11,8 @@ def asmatrix(x):
     return x.as_matrix().reshape(-1, 1)
 
 
-def nearby_stations(site_code, k=10, radius=500):
-    stations = pd.read_csv("../localdatasource/nearest_stations.csv")  # Pre-computed value.
+def nearby_stations(site_code, k=10, radius=500, path="../localdatasource/nearest_stations.csv"):
+    stations = pd.read_csv(path)  # Pre-computed value.
     k_nearest = stations[(stations['from'] == site_code) & (stations['distance'] < radius)]
 
     k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)['to'][0:k]
@@ -207,9 +207,6 @@ def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_a
         return models, k_station
 
 
-train_data = pd.read_csv('tahmostation2016.csv')
-test_data = pd.read_csv('tahmostation2017.csv')
-
 
 def regularization_test(target_station="TA00069"):
     # target_station = "TA0069"
@@ -355,7 +352,7 @@ def main():
     model = MixLinearModel(linear_reg=Ridge(alpha=0.5))
     model.fit(x=x, y=y)
 
-    dt, lbl = synthetic_fault_flatline(y, True)
+    dt, lbl = synthetic_fault(y, True)
     ll_ob = model.predict(x, y=dt)
     print roc_metric(ll_ob, lbl, False)
 
@@ -466,6 +463,9 @@ def tune_k(target_station):
         mn = merge_two_dicts(mn, vr)
         mn["k"] = k
         all_result.append(mn)
+    dx = pd.DataFrame(all_result)
+    dx.to_csv(target_station+"_all_station_k_tunining.csv", index=False)
+
     return all_result
 
 
@@ -481,6 +481,10 @@ def tune_k(target_station):
 
 if __name__ == '__main__':
     # Parameters
+
+    train_data = pd.read_csv('tahmostation2016.csv')
+    test_data = pd.read_csv('tahmostation2017.csv')
+
     FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
     K = 4
     ALPHA = 0.05

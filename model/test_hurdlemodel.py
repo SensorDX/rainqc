@@ -63,7 +63,8 @@ def synthetic_fault(observations, plot=False):
     lbl[faulty_day] = 1.0
     return dt, lbl
 
-plt.subplot(321)
+#plt.subplot(321)
+print "injected faults"
 dt, lbl = synthetic_fault(y, True)
 ll_ob = model.predict(x,y=dt)
 print roc_metric(ll_ob, lbl, False)
