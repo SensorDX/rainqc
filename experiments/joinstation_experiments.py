@@ -5,6 +5,7 @@ import matplotlib.pylab as plt
 import numpy as np
 from sklearn.linear_model import Ridge, Lasso, HuberRegressor, LogisticRegression
 from util.tools import merge_two_dicts
+from matplotlib.backends.backend_pdf import PdfPages
 
 def asmatrix(x):
     return x.as_matrix().reshape(-1, 1)
@@ -26,8 +27,12 @@ def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
     #print "Total anomalies", num_faults
     threshold = 10.0
     dt = observations.copy()
+    lbl = np.zeros([dt.shape[0]])
     rainy_day = np.where(dt > threshold)[0]
+    if len(rainy_day)<num_faults:
+        return dt, lbl
     d = np.random.choice(rainy_day, num_faults)
+
     #print "injected index", d
     injected_indx = []
     done = False
@@ -50,7 +55,7 @@ def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
         if done:
             # len(indx)>=faults:
             break
-    lbl = np.zeros([dt.shape[0]])
+
     lbl[injected_indx] = 1.0
     if plot:
         # plt.plot(dt, '.r', label="faults")
@@ -140,27 +145,32 @@ def test_plot(ll_test, t_lbl, y):
     plt.plot(y, '.b', label="observations")
     plt.plot(injx, y[injx], '.r', label="injected faults")
     plt.plot(ix, y[ix].reshape(-1), 'oy', mfc='none', label="detected faults")
+    plt.ylabel("Rain (mm)")
+    #plt.xlabel("Days")
     plt.legend(loc='best', prop={'size': 6})
+
     plt.subplot(2, 1, 2)
     plt.plot(ll_test, '.b', label="ll")
     plt.plot(injx, ll_test[injx], '.r', label="injected faults")
     plt.plot(ix, ll_test[ix].reshape(-1), 'oy', mfc='none', label="detected faults")
     plt.legend(loc='best', prop={'size': 6})
+    plt.ylabel("NLL")
+    #plt.xlabel("Days")
 
     # Precision and recall curve.
-
-    # plt.subplot(2,2,3)
-    # pltx.plot()
-    # plt.subplot(2, 2, 4)
-    # plt_auc = roc_metric(ll_test,t_lbl, plot=True)
-    # plt_auc.plot()
-
+    #
+    # plt.subplot(3,1,3)
+    # # pltx.plot()
+    # # plt.subplot(2, 2, 4)
+    # # plt_auc = roc_metric(ll_test,t_lbl, plot=True)
+    # # plt_auc.plot()
+    # pr, recall = precision_recall(ll_test, t_lbl)
     # plt.plot(recall, pr,'-b')
     # plt.ylabel("precision")
     # plt.xlabel("Recall")
 
 
-def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl, plot=False):
+def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl, plot=True):
     y, x = asmatrix(test_data[target_station]), test_data[k_station].as_matrix()
     # y_inj, t_lbl = synthetic_fault(y, plot=True, f_type="Both", alpha=ALPHA)
     ll_test = trained_model.predict(x=x, y=y_inj)
@@ -234,12 +244,12 @@ def main_test(target_station, save_fig=True):
     train_result['station'] = target_station
     train_result['num_k'] = K
     train_result['anom'] = ALPHA
-    # insert synthetic faults
-    test_result = train_result.copy()
+
     plt.subplot(211)
     plt.title(target_station)
     plt.xlabel('2016')
     y_train, lbl_train = synthetic_fault(train_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+
     plt.subplot(212)
     plt.xlabel('2017')
     y_test, lbl_test = synthetic_fault(test_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
@@ -247,54 +257,90 @@ def main_test(target_station, save_fig=True):
         plt.savefig("plots/" + target_station + ".jpg")
     plt.close()
 
-    plt.subplot(321)
-    plt.title('Training')
-    model, k_station = train(target_station=target_station, num_k=K, train_data=train_data)
-    print "Training accuracy"
-    train_result['train_joint_auc'], train_result['train_joint_pr'] = test(model, target_station=target_station,
-                                                                           k_station=k_station,
-                                                                           test_data=train_data, y_inj=y_train,
-                                                                           t_lbl=lbl_train)
 
-    plt.ylabel('Joint stations', fontsize=6)
-    plt.subplot(322)
-    plt.title('Test')
-    print "Test data set accuracy"
-    train_result['test_joint_auc'], train_result['test_joint_pr'] = test(model, target_station=target_station,
-                                                                         k_station=k_station, test_data=test_data,
-                                                                         y_inj=y_test, t_lbl=lbl_test)
+    with PdfPages("detectionplot/"+target_station+"plots.pdf") as pdf:
 
-    # pairwise:
-    print "\nPairwise result"
-    models, k_station = train(target_station=target_station, num_k=K, train_data=train_data, pairwise=False)
-    print "Training accuracy"
-    plt.subplot(323)
-    plt.ylabel("Pairwise avg. Logistic vote", fontsize=6)
-    train_result['train_pairwise_vote_auc'], train_result['train_pairwise_vote_pr'] = combine_models(models, train_data,
-                                                                                                     target_station,
-                                                                                                     y_train, lbl_train,
-                                                                                                     log_vote=True)
-    plt.subplot(325)
-    plt.ylabel("Pairwise avg ll", fontsize=6)
-    train_result['train_pairwise_auc'], train_result['train_pairwise_pr'] = combine_models(models, train_data,
-                                                                                           target_station, y_train,
-                                                                                           lbl_train,
-                                                                                           log_vote=False)
+        #plt.subplot(321)
+        #fig = plt.figure(figsize=(4, 5))
+        #plt.title('Training')
 
-    print "Testing accuracy "
-    plt.subplot(324)
-    train_result['test_pairwise_vote_auc'], train_result['test_pairwise_pr'] = combine_models(models, test_data,
-                                                                                              target_station, y_test,
-                                                                                              lbl_test,
-                                                                                              log_vote=True)
-    plt.subplot(326)
-    train_result['test_pairwise_auc'], train_result['test_pairwise_pr'] = combine_models(models, test_data,
-                                                                                         target_station, y_test,
-                                                                                         lbl_test,
-                                                                                         log_vote=False)
-    # plt.show()
-    plt.savefig("detectionplot/" + target_station + ".jpg")
-    plt.close()
+        model, k_station = train(target_station=target_station, num_k=K, train_data=train_data, pairwise=False)
+        print "Training accuracy"
+        train_result['train_joint_auc'], train_result['train_joint_pr'] = test(model, target_station=target_station,
+                                                                               k_station=k_station,
+                                                                               test_data=train_data, y_inj=y_train,
+                                                                              t_lbl=lbl_train)
+
+        plt.xlabel('Joint stations --training data', fontsize=6)
+
+        pdf.savefig()
+        plt.close()
+        #plt.subplot(322)
+        print "Test data set accuracy"
+        train_result['test_joint_auc'], train_result['test_joint_pr'] = test(model, target_station=target_station,
+                                                                             k_station=k_station, test_data=test_data,
+                                                                             y_inj=y_test, t_lbl=lbl_test)
+
+        #plt.title('Test')
+
+        plt.xlabel('Joint stations --testing data', fontsize=6)
+
+        pdf.savefig()
+        plt.close()
+        # pairwise:
+        print "\nPairwise result"
+        models, k_station = train(target_station=target_station, num_k=K, train_data=train_data, pairwise=True)
+        print "Training accuracy"
+        #plt.subplot(323)
+        train_result['train_pairwise_vote_auc'], train_result['train_pairwise_vote_pr'] = combine_models(models, train_data,
+                                                                                                         target_station,
+                                                                                                         y_train, lbl_train,
+                                                                                                         log_vote=True)
+
+        plt.xlabel('Pairwise vote --Training data', fontsize=6)
+
+        #plt.ylabel("Pairwise avg. Logistic vote", fontsize=6)
+
+        pdf.savefig()
+        plt.close()
+        #plt.subplot(325)
+
+        train_result['train_pairwise_auc'], train_result['train_pairwise_pr'] = combine_models(models, train_data,
+                                                                                               target_station, y_train,
+                                                                                               lbl_train,
+                                                                                               log_vote=False)
+
+        plt.xlabel('Pairwise  --Training data', fontsize=6)
+
+        #plt.title("Pairwise avg ll", fontsize=6)
+        pdf.savefig()
+        plt.close()
+        print "Testing accuracy "
+        #plt.subplot(324)
+        train_result['test_pairwise_vote_auc'], train_result['test_pairwise_pr'] = combine_models(models, test_data,
+                                                                                                  target_station, y_test,
+                                                                                                  lbl_test,
+                                                                                                  log_vote=True)
+
+
+        plt.xlabel('Pairwise vote --Testing data', fontsize=6)
+
+        pdf.savefig()
+        plt.close()
+        #plt.subplot(326)
+        train_result['test_pairwise_auc'], train_result['test_pairwise_pr'] = combine_models(models, test_data,
+                                                                                             target_station, y_test,
+                                                                                             lbl_test,
+                                                                                             log_vote=False)
+        # plt.show()
+
+        plt.xlabel('Pairwise -- Testing data', fontsize=6)
+
+        pdf.savefig()
+        plt.close()
+        #plt.savefig("detectionplot/" + target_station + ".jpg")
+        #plt.close()
+
     return train_result
 
 
@@ -436,29 +482,30 @@ def tune_k(target_station):
 if __name__ == '__main__':
     # Parameters
     FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
-    K = 5
-    ALPHA = 0.02
+    K = 4
+    ALPHA = 0.05
     ridge_alpha = 0.0
     # main()
     # print nearby_stations('TA00020')
     all_stations = train_data.columns.tolist()
     # print all_stations
-    target_station = "TA00025"
+    #target_station = "TA00020"
     #print main_test(target_station, save_fig=True)
     #tune_k(target_station)
     #
 
-    # all_auc = []
-    all_result = []
+    all_auc = []
+    # Tuning parameters
+    # all_result = []
     for target_station in all_stations[:]:
-         #all_auc += [main_test(target_station, save_fig=False)]
-         all_result +=tune_k(target_station)
-         print target_station
-    dx = pd.DataFrame(all_result)
-    dx.to_csv("all_station_k_tunining.csv", index=False)
+          all_auc += [main_test(target_station, save_fig=False)]
+          #all_result +=tune_k(target_station)
+          print target_station
+    # dx = pd.DataFrame(all_result)
+    # dx.to_csv("all_station_k_tunining.csv", index=False)
 
-    #results = pd.DataFrame(all_auc)
-    #results.to_csv("k_"+str(K)+"_results.csv",index=False)
+    results = pd.DataFrame(all_auc)
+    results.to_csv("k_"+str(K)+"_results.csv",index=False)
 
 
 
