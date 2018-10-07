@@ -103,12 +103,14 @@ class MixLinearModel(object):
 
         zero_rain = np.multiply((1 - p), (observations == 0))
         # density of residual and convert to non-log value.
-        residual_density = np.exp(self.kde.score_samples(predictions - np.log(observations + self.eps))).reshape(-1,1)
+        residual = predictions - np.log(observations + self.eps)
+        residual_density = np.exp(self.kde.score_samples(residual)).reshape(-1,1)
 
         non_zero_rain = np.divide(np.multiply(p, residual_density),
                                          (observations + self.eps))
-
+        #non_zero_rain = np.multiply(non_zero_rain_x, (observations >0))
         result = zero_rain + non_zero_rain
+        np.savetxt("debug.txt",np.hstack([observations,zero_rain,residual,residual_density, non_zero_rain, result]),delimiter=',')
         return -np.log(result)
 
     def to_json(self, model_id="001", model_path="rainqc_model"):

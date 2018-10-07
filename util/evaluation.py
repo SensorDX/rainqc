@@ -5,8 +5,9 @@ def roc_metric(pred, obs, plot=False, plt=None):
     fpr_rt_lm, tpr_rt_lm, _ = mt.roc_curve(obs, pred)
     auc_score = mt.auc(fpr_rt_lm, tpr_rt_lm, reorder=True)
     if plot:
+        #plt.clear()
 
-        plt.clf()
+
         plt.plot(fpr_rt_lm, tpr_rt_lm, label='ROC curve')
         plt.ylabel("tpr")
         plt.xlabel("fpr")
