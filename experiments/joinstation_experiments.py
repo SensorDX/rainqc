@@ -1,15 +1,32 @@
 from model.hurdle_regression import MixLinearModel
 import pandas as pd
-from util.evaluation import roc_metric, precision_recall
+from common.evaluation import roc_metric, precision_recall ,ap
 import matplotlib.pylab as plt
 import numpy as np
 from sklearn.linear_model import Ridge, Lasso, HuberRegressor, LogisticRegression
-from util.tools import merge_two_dicts
+from common.utils import merge_two_dicts
 from matplotlib.backends.backend_pdf import PdfPages
+import logging
+from collections import defaultdict
+import common.utils as util
+logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
+
+logging.basicConfig(filename="logfile.log",
+                    level=logging.DEBUG, format=logger_format,
+                    filemode='w')  # use filemode='a' for APPEND
+logger = logging.getLogger(__name__)
+
+FAULT_FLAG = 1.0
+FLAT_LINE = 0.0
 
 def asmatrix(x):
     return x.as_matrix().reshape(-1, 1)
 
+
+def evaluate_model(trained_model, x_test, y_test, lbl):
+    ll_ob = trained_model.predict(x_test, y=y_test)
+
+    return roc_metric(ll_ob, lbl)
 
 def nearby_stations(site_code, k=10, radius=500, path="../localdatasource/nearest_stations.csv"):
     stations = pd.read_csv(path)  # Pre-computed value.
@@ -20,19 +37,64 @@ def nearby_stations(site_code, k=10, radius=500, path="../localdatasource/neares
     # available_stations = LocalDataSource.__available_station(k_nearest, k)
     return k_nearest.tolist()  # available_stations
 
+def synthetic_groups(observations, plot=False, alpha=0.1, threshold=1.0):
 
-def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
     num_faults = int(np.ceil(alpha * len(observations)))
-    # insert flatline
-    #print "Total anomalies", num_faults
-    threshold = 10.0
     dt = observations.copy()
     lbl = np.zeros([dt.shape[0]])
-    rainy_day = np.where(dt > threshold)[0]
-    if len(rainy_day)<num_faults:
-        return dt, lbl
-    d = np.random.choice(rainy_day, num_faults)
+    rainy_days = np.where(dt > threshold)[0]
+    injected_indx = []
+    done = False
 
+    if len(rainy_days) < num_faults:
+        return dt, lbl
+    rainy_events = group_events(dt, threshold, filter_length=3)
+    selected_group = util.sample(rainy_events.keys())
+    injected_group = {}
+    for g in selected_group:
+        i = 0
+        for i, ix in enumerate(rainy_events[g]):
+
+            if len(injected_indx) >=num_faults:
+                done = True
+                break
+            injected_indx.append(ix)
+        if i>0:
+            injected_group[g] = FAULT_FLAG
+        if done:
+            break
+
+    dt[injected_indx] = FLAT_LINE
+    lbl[injected_indx] = FAULT_FLAG
+
+    if plot:
+        plot_synthetic(observations, dt, injected_indx)
+    groups ={"injected_group": injected_group, "group_events":rainy_events}
+
+    return dt, groups, lbl #print len(injected_indx), groups
+
+def plot_synthetic(observations, dt, injected_indx):
+    plt.subplot(2,1,1)
+    plt.plot(observations, '.b', label="Observations")
+    plt.plot(injected_indx, observations[injected_indx], '.r', label="points to flatten")
+    plt.legend(loc='best')
+
+    plt.subplot(2,1,2)
+    plt.plot(dt, '.b', label="Observations")
+    plt.plot(injected_indx, dt[injected_indx], '.r', label="faults")
+    plt.legend(loc='best')
+
+def synthetic_fault(observations, plot=False, alpha=0.01, threshold=1.0, f_type='Flat'):
+    num_faults = int(np.ceil(alpha * len(observations)))
+
+    dt = observations.copy()
+    lbl = np.zeros([dt.shape[0]])
+    rainy_events = group_events(dt, threshold)
+    rainy_days = np.where(dt > threshold)[0]
+    if len(rainy_days)<num_faults:
+        return dt, lbl
+    #d = np.random.choice(rainy_days, num_faults)
+    d = util.sample(rainy_days, num_faults)
     #print "injected index", d
     injected_indx = []
     done = False
@@ -60,14 +122,93 @@ def synthetic_fault(observations, plot=False, alpha=0.01, f_type='Flat'):
     if plot:
         # plt.plot(dt, '.r', label="faults")
 
-        plt.plot(observations, '.b', label="Observations")
-        plt.plot(injected_indx, dt[injected_indx], '.r', label="faults")
-
-        plt.legend(loc='best')
+       plot_synthetic(observations, dt , injected_indx)
         # plt.show()
+    logger.debug(injected_indx)
     # print injected_indx
     return dt, lbl
 
+def group_events(series, threshold = 1.0, filter_length=0):
+    group = defaultdict(int)
+    group_num = []
+    g = 0
+    for i, ix in enumerate(series):
+        if ix > threshold:
+            group_num.append(i)
+        else:
+            if len(group_num) > 0:
+                group[g] = group_num
+                group_num = []
+                g += 1
+    if filter_length>0:
+        group = { key:value for key, value in group.iteritems() if len(value)>filter_length}
+    return group
+
+def group_detection(target_station):
+    alpha = 0.01
+    k = 5
+    train_result = {}
+    train_result['station'] = target_station
+    train_result['num_k'] = k
+    train_result['anom'] = alpha
+
+    #plt.subplot(211)
+    plt.title(target_station)
+    plt.xlabel('2016')
+    y_train, groups, lbl = synthetic_groups(train_data[target_station], True, alpha=alpha, threshold=2.0)
+
+    model, k_station = train(target_station=target_station, num_k=k, train_data=train_data, pairwise=False)
+    print "Training accuracy"
+    ll_score = test_evaluate_group(trained_model=model, k_station=k_station,
+                                    test_data=train_data, y_inj=y_train)
+
+    # evaluate performance on event detection.
+     # 1. Give max score to each element in the group
+    injected_group = groups["injected_group"].keys()
+    mx_ll_score = ll_score.copy()
+
+    for ig in injected_group:
+        ix_g = groups["group_events"][ig]
+        max_score = np.max(mx_ll_score[ix_g])
+        mx_ll_score[ix_g] = max_score
+        #print "group %d"%ig
+        #print mx_ll_score[ix_g]
+        #print "before"
+        #print ll_score[ix_g]
+
+     # 2. detect colllective group with abnormal events.
+    #plt.show()
+
+    print "with out group"
+    print roc_metric(ll_score, lbl)
+    print "With group"
+    print roc_metric(mx_ll_score, lbl)
+
+    print "\n---------- Testing data ---------\n"
+
+    y_train, tgroups, lblt = synthetic_groups(test_data[target_station], True, alpha=alpha, threshold=2.0)
+    ll_score_test =  test_evaluate_group(trained_model=model, k_station=k_station,
+                                    test_data=test_data, y_inj=y_train)
+    tmx_ll_score = ll_score_test.copy()
+    for ig in tgroups["injected_group"].keys():
+        ix_g = tgroups["group_events"][ig]
+        max_score = np.max(tmx_ll_score[ix_g])
+        tmx_ll_score[ix_g] = max_score
+
+    print "with out group"
+    print roc_metric(ll_score_test, lblt)
+    print "With group"
+    print roc_metric(tmx_ll_score, lblt)
+    return train_result
+
+
+
+    #plt.subplot(212)
+    #plt.xlabel('2017')
+    #y_test, lbl_test = synthetic_fault(test_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
+    # if save_fig:
+    #     plt.savefig("plots/" + target_station + ".jpg")
+    # plt.close()
 
 def synthetic_fault_old(observations, plot=False, alpha=0.01, f_type='Flat'):
     num_faults = int(np.ceil(alpha * len(observations)))
@@ -101,12 +242,6 @@ def synthetic_fault_old(observations, plot=False, alpha=0.01, f_type='Flat'):
         plt.legend(loc='best')
         # plt.show()
     return dt, lbl
-
-
-def evaluate_model(trained_model, x_test, y_test, lbl):
-    ll_ob = trained_model.predict(x_test, y=y_test)
-
-    return roc_metric(ll_ob, lbl)
 
 
 def combine_models(trained_models, df, y_target, y_inj, lable, log_vote=True, plot=True):
@@ -172,16 +307,18 @@ def test_plot(ll_test, t_lbl, y):
 
 def test(trained_model, target_station, k_station, test_data, y_inj, t_lbl, plot=True):
     y, x = asmatrix(test_data[target_station]), test_data[k_station].as_matrix()
-    # y_inj, t_lbl = synthetic_fault(y, plot=True, f_type="Both", alpha=ALPHA)
     ll_test = trained_model.predict(x=x, y=y_inj)
     if plot:
         test_plot(ll_test, t_lbl, asmatrix(y_inj))
-    pr, recall = precision_recall(ll_test, t_lbl)
-    # print "precision curve"
-    # plt.plot(recall, pr,'-')
-    # plt.show()
+    pr = ap(pred=ll_test, obs=t_lbl)
 
-    return roc_metric(ll_test, t_lbl, False), pr[0]
+
+    return roc_metric(ll_test, t_lbl, False), pr
+def test_evaluate_group(trained_model, k_station, test_data, y_inj):
+    x =  test_data[k_station].as_matrix()
+    ll_test = trained_model.predict(x=x, y=y_inj)
+    return ll_test
+
 
 
 def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_alpha=0.0):
@@ -482,42 +619,62 @@ def tune_k(target_station):
 if __name__ == '__main__':
     # Parameters
 
-    train_data = pd.read_csv('tahmostation2016.csv')
-    test_data = pd.read_csv('tahmostation2017.csv')
+    mode = "group_detection"
+
+    train_data = pd.read_csv('dataset/tahmostation2016.csv')
+    test_data = pd.read_csv('dataset/tahmostation2017.csv')
 
     FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
-    K = 4
+    K = 5
     ALPHA = 0.05
     ridge_alpha = 0.0
     # main()
     # print nearby_stations('TA00020')
     all_stations = train_data.columns.tolist()
     # print all_stations
-    #target_station = "TA00020"
-    #print main_test(target_station, save_fig=True)
-    #tune_k(target_station)
-    #
+    target_station = "TA00026"
 
-    all_auc = []
-    # Tuning parameters
-    # all_result = []
-    for target_station in all_stations[:]:
-          all_auc += [main_test(target_station, save_fig=False)]
-          #all_result +=tune_k(target_station)
-          print target_station
-    # dx = pd.DataFrame(all_result)
-    # dx.to_csv("all_station_k_tunining.csv", index=False)
-
-    results = pd.DataFrame(all_auc)
-    results.to_csv("k_"+str(K)+"_results.csv",index=False)
+    if mode == "single_station":
 
 
+        print main_test(target_station, save_fig=True)
+    elif mode == "K_tuning":
 
+        tune_k(target_station)
+    elif mode == " K_tuning_all":
 
-    # Regularization expriments
-    # target_station = "TA00025"
-    # reg = pd.DataFrame(regularization_test(target_station))
-    # reg.to_csv(target_station+"regularization.csv", index=False)
+        #Tuning parameters
+        all_result = []
+        for target_station in all_stations[:]:
+              #all_auc += [main_test(target_station, save_fig=False)]
+              all_result +=tune_k(target_station)
+              print target_station
+        dx = pd.DataFrame(all_result)
+        dx.to_csv("all_station_k_tunining.csv", index=False)
+    elif mode == "multiple_station":
+        all_auc = []
+        for target_station in all_stations[:]:
+            all_auc += [main_test(target_station, save_fig=False)]
 
-    # model, k_station = train(target_station=target_station, num_k=5)
-    # test(model, target_station=target_station, k_station=k_station)
+        results = pd.DataFrame(all_auc)
+        results.to_csv("k_"+str(K)+"_results.csv",index=False)
+    elif mode == "regularization":
+
+        #Regularization expriments
+        target_station = "TA00025"
+        reg = pd.DataFrame(regularization_test(target_station))
+        reg.to_csv(target_station+"regularization.csv", index=False)
+    elif mode == "testtrain":
+
+        model, k_station = train(target_station=target_station, num_k=5)
+        test(model, target_station=target_station, k_station=k_station)
+    elif mode == "synthetic":
+        y = train_data[target_station].as_matrix()
+        synthetic_groups(y, plot= True, alpha=0.1 )
+        plt.show()
+    elif mode == "group_detection":
+        print group_detection(target_station)
+
+    else:
+        print util.sample(range(10))
+        print mode, " Not found"

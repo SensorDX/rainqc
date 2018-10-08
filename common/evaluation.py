@@ -32,6 +32,7 @@ def precision_recall(pred, obs, plot=False):
         return plot_pr_recall(pr, recall)
     return pr, recall
 def ap(pred, obs):
+    #pr, recall, _ = precision_at_recall(pred, obs)
     return mt.average_precision_score(obs, pred)
 
 def precision_at_recall(pred, obs):
@@ -46,4 +47,7 @@ def precision_at_recall(pred, obs):
 #     insert_fault[rainy_days] = 0.0  # Flatten days with rain events.
 #     fault_days = abnormal_report + rainy_days
 if __name__ == '__main__':
-    precision_at_recall([1, 0, 1, 1], [.32, .52, .26, .86])
+    print ap(obs=[1, 0, 1, 1], pred=[.32, .52, .26, .86])
+
+
+# TODO: Rearragne the metric files.

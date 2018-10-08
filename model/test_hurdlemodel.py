@@ -1,7 +1,7 @@
 
 from hurdle_regression import MixLinearModel
 import pandas as pd
-from util.evaluation import roc_metric
+from common.evaluation import roc_metric
 from sklearn.linear_model import LogisticRegression, LinearRegression
 import statsmodels.api as sm
 import matplotlib.pylab as plt
@@ -10,7 +10,7 @@ from sklearn.linear_model import Ridge, Lasso, HuberRegressor
 
 # input data
 
-df = pd.read_csv('sampledata.csv')
+df = pd.read_csv('../experiments/dataset/tahmostation2016.csv')
 x, y = df.ix[:, 2:].as_matrix(), df.ix[:,1:2].as_matrix()
 print x.shape ,y.shape
 # zero-one label
@@ -87,7 +87,7 @@ def evaluate_model(trained_model, x_test, y_test, lbl):
 
 
 ## Using test data from another years.
-test_data  = pd.read_csv('sampletahmo_test.csv')
+test_data  = pd.read_csv('../experiments/dataset/tahmostation2017.csv')
 x_t, y_t = test_data.ix[:, 2:].as_matrix(), test_data.ix[:,1:2].as_matrix()
 #insert faults on the test
 y_insert, t_lbl = synthetic_fault(y_t)

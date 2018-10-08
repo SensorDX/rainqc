@@ -9,7 +9,7 @@ from data_source import DataSource
 project_path ="/home/tadeze/projects/sensordx/rainqc"
 
 class CloudantAuthentication:
-    config = json.load(open(os.path.join(project_path,"util/config.localdatasource"),"rb"))["cloudant"]
+    config = json.load(open(os.path.join(project_path,"common/config.localdatasource"),"rb"))["cloudant"]
     URL = config["URL"] #'https://tahmobluemix.cloudant.com/'
     client = Cloudant(config["USERNAME"],
                       config["PASSWORD"],
