@@ -9,6 +9,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 import logging
 from collections import defaultdict
 import common.utils as util
+
+
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
 
 logging.basicConfig(filename="logfile.log",
@@ -19,13 +21,13 @@ logger = logging.getLogger(__name__)
 FAULT_FLAG = 1.0
 FLAT_LINE = 0.0
 
+
 def asmatrix(x):
     return x.as_matrix().reshape(-1, 1)
 
 
 def evaluate_model(trained_model, x_test, y_test, lbl):
     ll_ob = trained_model.predict(x_test, y=y_test)
-
     return roc_metric(ll_ob, lbl)
 
 def nearby_stations(site_code, k=10, radius=500, path="../localdatasource/nearest_stations.csv"):
@@ -45,12 +47,15 @@ def synthetic_groups(observations, plot=False, alpha=0.1, threshold=1.0):
     rainy_days = np.where(dt > threshold)[0]
     injected_indx = []
     done = False
+    injected_group = {}
 
     if len(rainy_days) < num_faults:
-        return dt, lbl
-    rainy_events = group_events(dt, threshold, filter_length=3)
+        return NameError("No enough rainy days for station")
+    rainy_events = group_events(dt, threshold, filter_length=1)
+    if len(rainy_events)<1:
+        return NameError("No enough rainy days for station")
     selected_group = util.sample(rainy_events.keys())
-    injected_group = {}
+
     for g in selected_group:
         i = 0
         for i, ix in enumerate(rainy_events[g]):
@@ -145,7 +150,7 @@ def group_events(series, threshold = 1.0, filter_length=0):
     return group
 
 def group_detection(target_station):
-    alpha = 0.01
+    alpha = 0.05
     k = 5
     train_result = {}
     train_result['station'] = target_station
@@ -153,12 +158,13 @@ def group_detection(target_station):
     train_result['anom'] = alpha
 
     #plt.subplot(211)
-    plt.title(target_station)
-    plt.xlabel('2016')
-    y_train, groups, lbl = synthetic_groups(train_data[target_station], True, alpha=alpha, threshold=2.0)
+    #plt.title(target_station)
+    #plt.xlabel('2016')
+    y_train, groups, lbl = synthetic_groups(train_data[target_station], False, alpha=alpha, threshold=2.0)
 
     model, k_station = train(target_station=target_station, num_k=k, train_data=train_data, pairwise=False)
-    print "Training accuracy"
+    #print "Training accuracy"
+
     ll_score = test_evaluate_group(trained_model=model, k_station=k_station,
                                     test_data=train_data, y_inj=y_train)
 
@@ -169,36 +175,38 @@ def group_detection(target_station):
 
     for ig in injected_group:
         ix_g = groups["group_events"][ig]
+        ix_g = [ix for ix in ix_g if lbl[ix] == 1]
         max_score = np.max(mx_ll_score[ix_g])
         mx_ll_score[ix_g] = max_score
-        #print "group %d"%ig
-        #print mx_ll_score[ix_g]
-        #print "before"
-        #print ll_score[ix_g]
 
      # 2. detect colllective group with abnormal events.
     #plt.show()
 
-    print "with out group"
-    print roc_metric(ll_score, lbl)
-    print "With group"
-    print roc_metric(mx_ll_score, lbl)
+    #print "with out group"
+    train_result["auc_train"] = roc_metric(ll_score, lbl)
+    #print "With group"
+    train_result["auc_train_grp"] = roc_metric(mx_ll_score, lbl)
 
-    print "\n---------- Testing data ---------\n"
-
-    y_train, tgroups, lblt = synthetic_groups(test_data[target_station], True, alpha=alpha, threshold=2.0)
-    ll_score_test =  test_evaluate_group(trained_model=model, k_station=k_station,
+    #print "\n---------- Testing data ---------\n"
+    try:
+        y_train, tgroups, lblt = synthetic_groups(test_data[target_station], True, alpha=alpha, threshold=2.0)
+        ll_score_test =  test_evaluate_group(trained_model=model, k_station=k_station,
                                     test_data=test_data, y_inj=y_train)
+    except Exception as ex:
+        print ex.message
+        return train_result
     tmx_ll_score = ll_score_test.copy()
     for ig in tgroups["injected_group"].keys():
         ix_g = tgroups["group_events"][ig]
         max_score = np.max(tmx_ll_score[ix_g])
         tmx_ll_score[ix_g] = max_score
 
-    print "with out group"
-    print roc_metric(ll_score_test, lblt)
-    print "With group"
-    print roc_metric(tmx_ll_score, lblt)
+    #print "with out group"
+    train_result["auc_test"] = roc_metric(ll_score_test, lblt) #, ap(ll_score_test, lblt)
+    #print "With group"
+    train_result["auc_test_grp"] = roc_metric(tmx_ll_score, lblt)#, ap(tmx_ll_score, lblt)
+    #print "With group"
+    #plt.show()
     return train_result
 
 
@@ -322,17 +330,20 @@ def test_evaluate_group(trained_model, k_station, test_data, y_inj):
 
 
 def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_alpha=0.0):
-    k_station = nearby_stations(target_station, k=num_k)
+    k_station = nearby_stations(target_station, k=num_k, path=nearest_location_path)
+    k_station = np.intersect1d(k_station, train_data.columns)
     y, x = train_data[target_station].as_matrix().reshape(-1, 1), train_data[k_station].as_matrix()
     # single joint model.
+    import os
 
+    load_residual = None # np.hstack([np.loadtxt("residual/" + ff) for ff in os.listdir("residual/")]).reshape(-1,1)
 
     if not pairwise:
 
         model = MixLinearModel(linear_reg=Ridge(alpha=ridge_alpha),log_reg= LogisticRegression(penalty="l2"))
 
 
-        return model.fit(x=x, y=y), k_station
+        return model.fit(x=x, y=y,load=True), k_station
     else:
         # Build pairwise regression model.
         models = {}
@@ -346,11 +357,6 @@ def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_a
 
 
 def regularization_test(target_station="TA00069"):
-    # target_station = "TA0069"
-    # result = {}
-    # result['station'] = target_station
-    # result['num_k'] = K
-    # result['anom'] = ALPHA
 
     y_train, lbl_train = synthetic_fault(train_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
     y_test, lbl_test = synthetic_fault(test_data[target_station], True, alpha=ALPHA, f_type=FAULT_TYPE)
@@ -620,9 +626,20 @@ if __name__ == '__main__':
     # Parameters
 
     mode = "group_detection"
+    #train_data = pd.read_csv('dataset/tahmostation2016.csv')
+    #test_data = pd.read_csv('dataset/tahmostation2017.csv')
+    # OK mesonet_stations.
+    #source = "ODM"
+    source = "TAHMO"
+    if source== "ODM":
 
-    train_data = pd.read_csv('dataset/tahmostation2016.csv')
-    test_data = pd.read_csv('dataset/tahmostation2017.csv')
+        train_data = pd.read_csv('dataset/mesonet_2008.csv')
+        test_data = pd.read_csv('dataset/mesonet_2009.csv')
+        nearest_location_path = "Nearest_station.dt"
+    else:
+        train_data = pd.read_csv('dataset/tahmostation2016.csv')
+        test_data = pd.read_csv('dataset/tahmostation2017.csv')
+        nearest_location_path = "../localdatasource/nearest_stations.csv"
 
     FAULT_TYPE = 'BOTH'  # could be 'Spike','Flat', or 'Both'
     K = 5
@@ -632,7 +649,8 @@ if __name__ == '__main__':
     # print nearby_stations('TA00020')
     all_stations = train_data.columns.tolist()
     # print all_stations
-    target_station = "TA00026"
+    target_station = "TA00021"
+    #target_station = "MARE"
 
     if mode == "single_station":
 
@@ -673,7 +691,15 @@ if __name__ == '__main__':
         synthetic_groups(y, plot= True, alpha=0.1 )
         plt.show()
     elif mode == "group_detection":
-        print group_detection(target_station)
+        target_station = "TA00025"
+        #print group_detection(target_station) #for target_station in all_stations]
+        odm_result = []
+        for target_station in all_stations[:]:
+            print target_station
+
+            res = group_detection(target_station)
+            odm_result.append(res)
+            pd.DataFrame(odm_result).to_csv("tahmo_results_kde.csv",index=False)
 
     else:
         print util.sample(range(10))
