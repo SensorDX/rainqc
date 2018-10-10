@@ -663,12 +663,13 @@ if __name__ == '__main__':
 
         #Tuning parameters
         all_result = []
+        #dx = pd.DataFrame()
         for target_station in all_stations[:]:
               #all_auc += [main_test(target_station, save_fig=False)]
               all_result +=tune_k(target_station)
               print target_station
-        dx = pd.DataFrame(all_result)
-        dx.to_csv("all_station_k_tunining.csv", index=False)
+              dx = pd.DataFrame(all_result)
+              dx.to_csv("all_station_k_tunining.csv", index=False)
     elif mode == "multiple_station":
         all_auc = []
         for target_station in all_stations[:]:

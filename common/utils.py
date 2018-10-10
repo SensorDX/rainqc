@@ -34,32 +34,7 @@ logger = logging.getLogger(__name__)
 
 def get_option_list():
     parser = ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="airline", required=False,
-                        help="Dataset name")
-    parser.add_argument("--algo", type=str, default="", required=False,
-                        help="Algorithm to apply")
-    parser.add_argument("--explore_only", action="store_true", default=False,
-                        help="Perform exploratory analysis only instead of more expensive model fitting.")
-    parser.add_argument("--budget", type=int, default=1, required=False,
-                        help="Budget for feedback")
-    parser.add_argument("--n_epochs", type=int, default=200, required=False,
-                        help="Max training epochs")
-    parser.add_argument("--train_batch_size", type=int, default=25, required=False,
-                        help="Batch size for stochastic gradient descent based training methods")
-    parser.add_argument("--n_lags", type=int, default=12, required=False,
-                        help="Number of time lags for timeseries models")
-    parser.add_argument("--normalize_trend", action="store_true", default=False,
-                        help="Whether to remove trend in timeseries by successive difference")
-    parser.add_argument("--log_transform", action="store_true", default=False,
-                        help="Whether to apply element-wise log transform to the timeseries")
-    parser.add_argument("--n_anoms", type=int, default=10, required=False,
-                        help="Number of top anomalies to report")
-    parser.add_argument("--debug", action="store_true", default=False,
-                        help="Whether to enable output of debug statements")
-    parser.add_argument("--plot", action="store_true", default=False,
-                        help="Whether to plot figures")
-    parser.add_argument("--log_file", type=str, default="", required=False,
-                        help="File path to debug logs")
+
     return parser
 
 
