@@ -98,7 +98,9 @@ def average_angular(angles):
         return avg_angle + 180
     else:
         return avg_angle + 360
+
 # def impute_value(X, na_value=-60):
+
 #     """
 #     Accept X value of numpy array.
 #     Remove large < -50 values from the array
