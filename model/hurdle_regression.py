@@ -9,13 +9,13 @@ from sklearn.externals import joblib
 import seaborn as sbn
 import common.utils as utils
 import statsmodels.api as sm
-class ModelFactory:
-    @staticmethod
-    def create_model(model_name):
-        if model_name == 'MixLinear':
-            return MixLinearModel()
-        if model_name == 'Linear':
-            return LinearRegression()
+import logging
+
+logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
+logging.basicConfig(filename="logfile.log",
+                    level=logging.DEBUG, format=logger_format,
+                    filemode='w')  # use filemode='a' for APPEND
+logger = logging.getLogger(__name__)
 
 
 class MixLinearModel(object):
@@ -40,18 +40,14 @@ class MixLinearModel(object):
         plt.ylabel('Log (response + eps)')
         plt.show()
     def residual_density_plot(self, residual):
-        #plt.plot(residual, self.kde.score_samples(residual),'.r')
         import scipy.stats as stat
         plt.subplot(211)
         sbn.distplot(residual,hist=True )
         plt.subplot(212)
-        #stat.probplot(residual, dist="norm", plot=plt)
-        fig = sm.qqplot(residual,stat.t, distargs=(4,),line='s')
-
-        #sbn.kdeplot(residual)
+        sbn.kdeplot(residual)
         #plt.show()
     def grid_fit_kde(self, residual):
-        from sklearn.grid_search import GridSearchCV
+        from sklearn.model_selection import GridSearchCV
         grid = GridSearchCV(KernelDensity(), {'bandwidth':np.linspace(0.1,1.0,20)}, cv=20)
         grid.fit(residual)
         return grid.best_params_
@@ -86,18 +82,14 @@ class MixLinearModel(object):
         if load is False:
 
             param = self.grid_fit_kde(self.residual)
-        #self.kde.fit(self.residual)
             self.kde = KernelDensity(bandwidth=param["bandwidth"])
             self.kde.fit(self.residual)
+
 
         else:
             self.kde = pickle.load(open("all_kde.kd","rb"))
 
-        #self.residual_density_plot(self.residual)
-        print "KDE bandwidth"
-        print self.kde.bandwidth
-        #rann = np.random.random_integers(1,10000)
-        #np.savetxt("residual/res_"+str(rann)+".txt", self.residual)
+        logger.debug("KDE bandwidth %s"%self.kde.bandwidth)
         return self
 
     def predict(self, x, y, label=None):

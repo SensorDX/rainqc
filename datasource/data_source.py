@@ -5,11 +5,10 @@ import numpy as np
 import os
 import json
 
-
+variable_aggregation ={'pr':np.sum, 'te':np.mean}
 
 
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=None):
-
 
     rows = [{'date': row['date'], weather_variable: row['measurements'][weather_variable]} for row in json_station_data]
     df = pd.DataFrame(rows)
@@ -18,7 +17,7 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     if filter_year:
         df = df[df.date.dt.year == filter_year]
     if group:
-        df = df.groupby(df.date.dt.dayofyear).agg({weather_variable: np.sum,
+        df = df.groupby(df.date.dt.dayofyear).agg({weather_variable: variable_aggregation[weather_variable],
                                                    "date": np.max})  # apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
     return df
 
@@ -62,15 +61,17 @@ class LocalDataSource(DataSource):
         full_path = os.path.join(LocalDataSource.data_path,'stations/'+
                                  "rm_" + station_name + ".json")
         jj = json.load(open(full_path, "rb"))
+
         return jj
 
     @staticmethod
     def measurements(station_name, weather_variable, date_from, date_to, **kwargs):
         json_data = LocalDataSource.json_measurements(station_name)
+        json_data = [jj for jj in json_data if (jj['date']<date_to and jj['date']>=date_from)]
         df = json_to_df(json_data, group=kwargs.get('group'), filter_year=kwargs.get('filter_year'),
                         weather_variable=weather_variable)
         # make sure there is no missing value. Incase handle it at query time.
-        df = df[((df.date < date_to) & (df.date > date_from))]
+        #df = df[((df.date < date_to) & (df.date > date_from))]
         return df
 
     @staticmethod
@@ -105,6 +106,10 @@ class LocalDataSource(DataSource):
         available_stations = LocalDataSource.__available_station(k_nearest, k)
         return available_stations
 
+
+
+
+
 if __name__ == '__main__':
     ll = LocalDataSource
     ll.data_path = '../localdatasource'
@@ -115,3 +120,4 @@ if __name__ == '__main__':
                  date_from='2017-01-01 00:00:00',
                  date_to='2017-05-01 00:00:00')
     print ms.head(5)
+    print ms.tail(2)

@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from model.hurdle_regression import ModelFactory
+from model.models import ModelFactory
 from view.view import ViewFactory, pairwise_view
 
 
@@ -12,6 +12,7 @@ class RQC(object):
     """
     Interface for training and scoring the Qaulity control.
     Add view type and model.
+    This assumes for one station.. or given station.
     """
 
     data_source = None
