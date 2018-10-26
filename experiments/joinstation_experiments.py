@@ -23,6 +23,9 @@ FLAT_LINE = 0.0
 
 
 def asmatrix(x):
+    if isinstance(x, np.ndarray):
+        return x.reshape(-1,1)
+
     return x.as_matrix().reshape(-1, 1)
 
 
