@@ -1,4 +1,3 @@
-import numpy as np
 from sklearn.neighbors import KernelDensity
 from sklearn.linear_model import LinearRegression, LogisticRegression
 import json
@@ -7,8 +6,10 @@ import os
 import matplotlib.pylab as plt
 from sklearn.externals import joblib
 import numpy as np
-import seaborn as sbn
 import common.utils as utils
+from sklearn.model_selection import GridSearchCV
+
+
 class ModelFactory:
     @staticmethod
     def create_model(model_name):
@@ -18,20 +19,37 @@ class ModelFactory:
             return LinearRegression()
 
 
+def grid_fit_kde(residual):
+    """
+    Grid search for best bandwidth of KDE
+    Args:
+        residual: residual value.
+
+    Returns:
+
+    """
+    grid = GridSearchCV(KernelDensity(), {'bandwidth':np.linspace(0.1,1.0,20)}, cv=20)
+    grid.fit(residual)
+    return grid.best_params_
+
 class MixLinearModel(object):
     """
         Mixture of linear model.
-        0/1 Hurdle model.
+        Train logistic regression for 0/1 prediction. And fit weighted linear regression, 
+        with weight from output of the logistic regression. 
+        Fit mixture of linear-model for rainy and non-rainy events. 
+
     """
 
     def __init__(self, linear_reg=LinearRegression(), log_reg=LogisticRegression(),
-                 kde=KernelDensity(kernel="gaussian")):
+                 kde=KernelDensity(kernel="gaussian"), eps=0.0001):
         self.linear_reg = linear_reg
-        self.eps = 0.001
+        self.eps = eps 
         self.log_reg = log_reg
         self.kde = kde
         self.fitted = False
         self.residual = False
+
 
     def residual_plot(self, observed, true_value, fitted):
         plt.scatter(true_value, np.log(observed))
@@ -41,13 +59,7 @@ class MixLinearModel(object):
         plt.show()
     def residual_density_plot(self, residual):
         plt.plot(residual, self.kde.score_samples(residual),'.r')
-        #sbn.distplot(residual,hist=False)
         plt.show()
-    def grid_fit_kde(self, residual):
-        from sklearn.grid_search import GridSearchCV
-        grid = GridSearchCV(KernelDensity(), {'bandwidth':np.linspace(0.1,1.0,20)}, cv=20)
-        grid.fit(residual)
-        return grid.best_params_
 
     def fit(self, x, y, verbose=False, load=False):
         """
@@ -78,18 +90,11 @@ class MixLinearModel(object):
         # Grid fit for bandwidith.
         if load is False:
 
-            param = self.grid_fit_kde(self.residual)
-        #self.kde.fit(self.residual)
+            param = grid_fit_kde(self.residual)
             self.kde = KernelDensity(bandwidth=param["bandwidth"])
             self.kde.fit(self.residual)
         else:
             self.kde = pickle.load(open("all_kde.kd","rb"))
-
-        #self.residual_density_plot(self.residual)
-        #print "KDE bandwidth"
-        #print self.kde.bandwidth
-        #rann = np.random.random_integers(1,10000)
-        #np.savetxt("residual/res_"+str(rann)+".txt", self.residual)
         return self
 
     def predict(self, x, y, label=None):
