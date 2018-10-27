@@ -21,12 +21,9 @@ def multipair_view(target_station, stations):
     Returns:
 
     """
-
     assert all(target_station.shape==n_station.shape for n_station in stations)
     dt = np.hstack(stations)
     return ViewDefinition(y=target_station, x = dt)
-
-
 
 
 class View(object):

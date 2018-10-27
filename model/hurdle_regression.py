@@ -6,17 +6,18 @@ import os
 import matplotlib.pylab as plt
 from sklearn.externals import joblib
 import numpy as np
-import common.utils as utils
 from sklearn.model_selection import GridSearchCV
+import seaborn as sbn
+import common.utils as utils
+import statsmodels.api as sm
+import logging
+import scipy.stats as stat
 
-
-class ModelFactory:
-    @staticmethod
-    def create_model(model_name):
-        if model_name == 'MixLinear':
-            return MixLinearModel()
-        if model_name == 'Linear':
-            return LinearRegression()
+logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
+logging.basicConfig(filename="logfile.log",
+                    level=logging.DEBUG, format=logger_format,
+                    filemode='w')  # use filemode='a' for APPEND
+logger = logging.getLogger(__name__)
 
 
 def grid_fit_kde(residual):
@@ -58,8 +59,16 @@ class MixLinearModel(object):
         plt.ylabel('Log (response + eps)')
         plt.show()
     def residual_density_plot(self, residual):
-        plt.plot(residual, self.kde.score_samples(residual),'.r')
-        plt.show()
+        plt.subplot(211)
+        sbn.distplot(residual,hist=True )
+        plt.subplot(212)
+        sbn.kdeplot(residual)
+        #plt.show()
+    def grid_fit_kde(self, residual):
+        from sklearn.model_selection import GridSearchCV
+        grid = GridSearchCV(KernelDensity(), {'bandwidth':np.linspace(0.1,1.0,20)}, cv=20)
+        grid.fit(residual)
+        return grid.best_params_
 
     def fit(self, x, y, verbose=False, load=False):
         """
@@ -93,8 +102,11 @@ class MixLinearModel(object):
             param = grid_fit_kde(self.residual)
             self.kde = KernelDensity(bandwidth=param["bandwidth"])
             self.kde.fit(self.residual)
+
+
         else:
             self.kde = pickle.load(open("all_kde.kd","rb"))
+        logger.debug("KDE bandwidth %s"%self.kde.bandwidth)
         return self
 
     def predict(self, x, y, label=None):
@@ -132,13 +144,12 @@ class MixLinearModel(object):
         zero_rain = np.multiply((1 - p), (observations == 0))
         # density of residual and convert to non-log value.
         residual = predictions - np.log(observations + self.eps)
-        residual_density = np.exp(self.kde.score_samples(residual)).reshape(-1,1)  #TODO: handle overflow problem with numerator.
+        residual_density = np.exp(self.kde.score_samples(residual)).reshape(-1,1)
 
         non_zero_rain = np.divide(np.multiply(p, residual_density),
                                          (observations + self.eps))
-        #non_zero_rain = np.multiply(non_zero_rain_x, (observations >0))
         result = zero_rain + non_zero_rain
-        np.savetxt("debug.txt",np.hstack([observations,zero_rain,residual,residual_density, non_zero_rain, result]),delimiter=',')
+        #np.savetxt("debug.txt",np.hstack([observations,zero_rain,residual,residual_density, non_zero_rain, result]),delimiter=',')
         return -np.log(result + np.max(result))
 
     def to_json(self, model_id="001", model_path="rainqc_model"):
