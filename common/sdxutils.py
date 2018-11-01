@@ -2,6 +2,12 @@
 import pandas as pd
 import numpy as np
 from utils import merge_two_dicts
+
+## Weather variable vocablary.
+
+
+
+
 def haversine_distance(lat1, lon1, lat2, lon2):
     earth_radius = 6371.16
     deg2rad = lambda deg: deg*np.pi/180

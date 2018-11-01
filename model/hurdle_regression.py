@@ -9,9 +9,7 @@ import numpy as np
 from sklearn.model_selection import GridSearchCV
 import seaborn as sbn
 import common.utils as utils
-import statsmodels.api as sm
 import logging
-import scipy.stats as stat
 
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
 logging.basicConfig(filename="logfile.log",
