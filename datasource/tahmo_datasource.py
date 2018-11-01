@@ -29,14 +29,14 @@ def nearby_stations(site_code, radius=100, data_path="nearest_station.csv"):
 
     stations = pd.read_csv(data_path)  # Pre-computed value.
     k_nearest = stations[(stations['from'] == site_code) & (stations['distance'] < radius)]
-    k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)['to','distance']  # [0:k]
+    k_nearest = k_nearest.sort_values(by=['distance', 'elevation'], ascending=True)  # [0:k]
     return k_nearest
 
 
 class TahmoDataSource(object):
 
 
-    def __init__(self):
+    def __init__(self, nearby_station_location="nearest_station.csv"):
 
         self.header = {
     'authorization': "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
@@ -46,23 +46,19 @@ class TahmoDataSource(object):
         self.time_series_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s/rawMeasurements"
         self.station_url = "https://tahmoapi.mybluemix.net/v1/stations"
         self.cm_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s%"
-        self.nearby_station_file = "nearest_station.csv"
-        #app.get('/v1/stations/:stationId',
+        self.nearby_station_file = nearby_station_location
+
     def __get_request(self, url, params={}):
         try:
             response = requests.request("GET", url, headers=self.header,
                                         params=params)
-
         except requests.HTTPError, err:
             if err.code == 401:
                 return ValueError("Error: Invalid API credentials")
-
             elif err.code == 404:
                 return ValueError("Error: The API endpoint is currently unavailable")
-
             else:
                 return ValueError("Error: {}".format(err))
-
         return response
 
     def get_data(self, station_name, start_date, end_date, data_format="json"):
@@ -75,7 +71,7 @@ class TahmoDataSource(object):
         elif data_format =="dataframe":
             return json_to_df(json_data, group=None)
 
-    def daily_data(self, station_name, start_date, end_date, weather_variable):
+    def daily_data(self, station_name,  weather_variable, start_date, end_date):
         json_data = self.get_data(station_name, start_date, end_date)
         df = json_to_df(json_data, weather_variable=weather_variable, group="D")
         return df
@@ -110,17 +106,21 @@ class TahmoDataSource(object):
                         continue
         return active_stations
 
-    def nearby_stations(self, target_station, k=10, radius=500):
-        return  nearby_stations(target_station, radius, self.nearby_station_file)
+    def nearby_stations(self, target_station, k=10, radius=100):
+        k_nearby = nearby_stations(target_station, radius, self.nearby_station_file)[:k]
+        oo_dict = OrderedDict()
+        for _ ,row in k_nearby.iterrows():
+            oo_dict[row['to']] = row['distance']
+        print oo_dict
+        return oo_dict
 
-
-
+from collections import OrderedDict
 
 
 if __name__ == '__main__':
 
-
-        thm = TahmoDataSource()
+        target_station = "TA00021"
+        thm = TahmoDataSource("../localdatasource/nearest_stations.csv")
         start_date = datetime.datetime.strftime(datetime.datetime.utcnow() - datetime.timedelta(20), '%Y-%m-%dT%H:%M')
         end_date = datetime.datetime.strftime(datetime.datetime.utcnow() - datetime.timedelta(10), '%Y-%m-%dT%H:%M')
         print start_date
@@ -129,5 +129,6 @@ if __name__ == '__main__':
        # print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
         # get active stations
         station_list = ['TA00028','TA00068', "TA00108", "TA00187"]
-        print thm.get_active_station(station_list, active_day_range=datetime.datetime.utcnow())
+        #print thm.get_active_station(station_list, active_day_range=datetime.datetime.utcnow())
+        print thm.nearby_stations(target_station=target_station, k=20, radius=200)
 
