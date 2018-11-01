@@ -27,6 +27,7 @@ class DataSource(object):
     Abstract class for accessing data source
     """
 
+
     @staticmethod
     def nearby_stations(site_code, k=10, radius=500):
         return NotImplementedError
@@ -64,14 +65,15 @@ class LocalDataSource(DataSource):
 
         return jj
 
+
+
     @staticmethod
     def measurements(station_name, weather_variable, date_from, date_to, **kwargs):
         json_data = LocalDataSource.json_measurements(station_name)
         json_data = [jj for jj in json_data if (jj['date']<date_to and jj['date']>=date_from)]
+
         df = json_to_df(json_data, group=kwargs.get('group'), filter_year=kwargs.get('filter_year'),
                         weather_variable=weather_variable)
-        # make sure there is no missing value. Incase handle it at query time.
-        #df = df[((df.date < date_to) & (df.date > date_from))]
         return df
 
     @staticmethod
@@ -95,7 +97,7 @@ class LocalDataSource(DataSource):
         return available_station
 
     @staticmethod
-    def nearby_stations(site_code, k=10, radius=500):
+    def nearby_stations(site_code, k=30, radius=100):
 
         stations = pd.read_csv(
             os.path.join(LocalDataSource.data_path, "nearest_stations.csv"))  # Pre-computed value.
@@ -114,10 +116,10 @@ if __name__ == '__main__':
     ll = LocalDataSource
     ll.data_path = '../localdatasource'
     target_station = 'TA00025'
-    print ll.nearby_stations(target_station)
+    print ll.nearby_stations(target_station, k=30)
     # Measurements:
     ms = ll.measurements(target_station, 'pr',
                  date_from='2017-01-01 00:00:00',
                  date_to='2017-05-01 00:00:00')
-    print ms.head(5)
-    print ms.tail(2)
+    print ms
+   # print ms.tail(2)

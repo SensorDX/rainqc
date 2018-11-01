@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from model.models import ModelFactory
-from view.view import ViewFactory, pairwise_view
+from view.view import ViewFactory, pairwise_view, multipair_view
 
 
 def evaluate(model_list, sample_data):
@@ -26,6 +26,7 @@ class RQC(object):
         self.radius = radius
         # self.view_object_list = {}
         self.view_factory = ViewFactory()
+
         self.model_factory = ModelFactory()
 
     def add(self, type, name):
@@ -43,9 +44,9 @@ class RQC(object):
     def add_model(self, model_name=None):
         self.model = model_name
 
-    @classmethod
-    def __fetch_data(cls, target_station, variable, date_from, date_to, **kwargs):
-        fetched_data = cls.data_source.measurements(target_station, variable,
+    #@classmethod
+    def __fetch_data(self, target_station, variable, date_from, date_to, **kwargs):
+        fetched_data = self.data_source.measurements(target_station, variable,
                                                     date_from=date_from, date_to=date_to,
                                                     group=kwargs.get('group'))
         if fetched_data:
@@ -68,7 +69,7 @@ class RQC(object):
         """
         station_list = kwargs.get("station_list")
         if station_list is None:
-            nearby_stations = self.data_source.nearby_stations(target_station, self.num_k_stations, self.radius)
+            nearby_stations = self.data_source.nearby_stations(target_station, self.radius)
         else:
             nearby_stations = station_list
 
@@ -78,14 +79,17 @@ class RQC(object):
                                                                         group=kwargs.get('group'))[
             self.variable].as_matrix()
 
-        target_station = query_data(
-            target_station)  # self.__fetch_data(target_station, self.variable, date_from, date_to, **kwargs)  #query_data(target_station)
+        target_station = query_data(target_station)
 
         if nearby_stations is None or target_station is None:
-            return NameError("There are no available nearby stations.")
+            return ValueError("There are no available nearby stations for {}".format(target_station))
+        k_station_data = [self.__fetch_data(stn, self.variable,  date_from=date_from, date_to=date_to,
+                                                                        group=kwargs.get('group')) for stn in nearby_stations]
+        # Joint view for now.
+        view_list  = multipair_view(target_station, k_station_data)
 
-        for station_name in nearby_stations:
-            view_list[station_name] = pairwise_view(target_station, query_data(station_name))
+        # for station_name in nearby_stations:
+        #     view_list[station_name] = pairwise_view(target_station, query_data(station_name))
 
         return view_list
 
@@ -177,29 +181,31 @@ if __name__ == '__main__':
     rqc.data_source = LocalDataSource(dir_path='./localdatasource')  # ToyDataSource
 
     rqc.add_view('PairwiseView')
+    rqc.add_view('multiview')
     rqc.add_model('MixLinear')
     target_station = 'TA00056'
     vw = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-12-01', group='D')
     # fitted_model = rqc.fit(target_station=target_station, date_from='2010-01-01', date_to='2010-10-01', group='D',
     #       pairwise=True)
+    print vw
 
-    fitted_model = rqc.fit_from_view(vw)
-
-    # print fitted_model.keys()
-    import numpy as np
-
-    # print fitted_model.keys()
-    # print len(vw), vw.keys(), [vv.x.shape for vv in vw.values()]
-    score_view = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-10-01', group='D')
-    score = rqc.score_from_view(fitted_model, score_view)
-    # score = rqc.score(model_registry=fitted_model, target_station=target_station, date_from='2010-01-01', date_to='2010-10-01', group='D',
-    #       pairwise=True, station_list =fitted_model.keys())
-
-    ll = {}
-    ff = {}
-    for key in score:
-        ll[key] = -np.log(score[key])
-    print ll
+    # fitted_model = rqc.fit_from_view(vw)
+    #
+    # # print fitted_model.keys()
+    # import numpy as np
+    #
+    # # print fitted_model.keys()
+    # # print len(vw), vw.keys(), [vv.x.shape for vv in vw.values()]
+    # score_view = rqc.build_view(target_station=target_station, date_from='2017-01-01', date_to='2017-10-01', group='D')
+    # score = rqc.score_from_view(fitted_model, score_view)
+    # # score = rqc.score(model_registry=fitted_model, target_station=target_station, date_from='2010-01-01', date_to='2010-10-01', group='D',
+    # #       pairwise=True, station_list =fitted_model.keys())
+    #
+    # ll = {}
+    # ff = {}
+    # for key in score:
+    #     ll[key] = -np.log(score[key])
+    # print ll
 
 # TODO: Model aggregation and evaluation on the test data. Download all the stations data.
 # TODO: Construct synthetic or replicate data of multiple stations and evaluate the models.  simulat the stations metadata and their attributes.
