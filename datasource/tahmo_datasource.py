@@ -61,7 +61,7 @@ class TahmoDataSource(object):
                 return ValueError("Error: {}".format(err))
         return response
 
-    def get_data(self, station_name, start_date, end_date, data_format="json"):
+    def get_data(self, station_name, weather_variable, start_date, end_date, data_format="json"):
         querystring = {"startDate": start_date, "endDate": end_date}
         url = self.time_series_url % station_name
         json_data = self.__get_request(url, querystring).json()
@@ -79,6 +79,9 @@ class TahmoDataSource(object):
     def get_stations(self):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
+
+
+    def active_stations(self, station_list, active_day_range=datetime.datetime.utcnow(), threshold=24):
         """
         Return active station from the given list of stations during the active day
         Args:
@@ -110,8 +113,13 @@ class TahmoDataSource(object):
         oo_dict = OrderedDict()
         for _, row in k_nearby.iterrows():
             oo_dict[row['to']] = row['distance']
-        print oo_dict
+        #print oo_dict
         return oo_dict
+    def get_active_nearby(self, target_station, k=10, radius=100):
+        all_k_stations = nearby_stations(target_station, k, radius)
+        return self.active_stations(all_k_stations.keys())
+
+
 
 if __name__ == '__main__':
     target_station = "TA00021"
@@ -126,7 +134,8 @@ if __name__ == '__main__':
     station_list = ['TA00028', 'TA00068', "TA00108", "TA00187"]
     # print thm.get_active_station(station_list, active_day_range=datetime.datetime.utcnow())
     print thm.nearby_stations(target_station=target_station, k=20, radius=200)
-    thm = TahmoDataSource()
+    #thm = TahmoDataSource()
     # print thm.get_stations()
     # print thm.get_data("TA00021", start_date="2017-09-01", end_date="2017-09-05")
-    print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
+    print thm.daily("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
+
