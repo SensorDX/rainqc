@@ -61,7 +61,7 @@ class TahmoDataSource(object):
                 return ValueError("Error: {}".format(err))
         return response
 
-    def get_data(self, station_name, weather_variable, start_date, end_date, data_format="json"):
+    def get_data(self, station_name, start_date, end_date, data_format="json"):
         querystring = {"startDate": start_date, "endDate": end_date}
         url = self.time_series_url % station_name
         json_data = self.__get_request(url, querystring).json()
@@ -71,10 +71,6 @@ class TahmoDataSource(object):
         elif data_format == "dataframe":
             return json_to_df(json_data, group=None)
 
-
-        json_data = self.get_data(station_name, start_date, end_date)
-        df = json_to_df(json_data, weather_variable=weather_variable, group="D")
-        return df
 
     def get_stations(self):
         station_list = self.__get_request(url=self.station_url)
@@ -107,6 +103,10 @@ class TahmoDataSource(object):
                         active_stations.append(station)
                         continue
         return active_stations
+    def daily_data(self, station_name, weather_variable, start_date, end_date):
+        json_data = self.get_data(station_name,  start_date, end_date)
+        df = json_to_df(json_data, weather_variable=weather_variable, group='D')
+        return df
 
     def nearby_stations(self, target_station, k=10, radius=100):
         k_nearby = nearby_stations(target_station, radius, self.nearby_station_file)[:k]
@@ -137,5 +137,5 @@ if __name__ == '__main__':
     #thm = TahmoDataSource()
     # print thm.get_stations()
     # print thm.get_data("TA00021", start_date="2017-09-01", end_date="2017-09-05")
-    print thm.daily("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
+    print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
 
