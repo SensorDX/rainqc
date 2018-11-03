@@ -3,6 +3,7 @@ from model.models import Module
 from view.view import View, ViewDefinition
 from collections import OrderedDict
 import datetime
+from dateutil import parser, tz
 from datasource.tahmo_datasource import TahmoDataSource
 
 
@@ -83,7 +84,7 @@ class MainRQC:
         # check if the stations are active and have data for the given range date.
 
     #
-    def fit(self, date_from, date_to, **kwargs):
+    def fit(self, start_date, end_date, **kwargs):
         """
         Fit the RQC module using the data from the give date range.
         1. Fetch data from db
@@ -91,47 +92,70 @@ class MainRQC:
         3. Create view using the stations.
         4. If things passed, train the model.
         Args:
-            date_from:
-            date_to:
+            start_date:
+            end_date:
             **kwargs:
 
         Returns: self, fitted class of RQC.
 
         """
 
-        target_station_data = self.data_source.daily_data(self.target_station, self.variable, date_from, date_to)
-        k_stations = self.data_source.nearby_stations(target_station=self.target_station, radius=self.radius,
-                                                      k=self.num_k_stations)
+        station_data = {}
+        target_station_data = self.data_source.daily_data(self.target_station, self.variable, start_date, end_date)
+        if target_station_data is None:
+            return ValueError("Target station has no data")
+        k_stations = self.data_source.nearby_stations(target_station=self.target_station, radius=self.radius)
+        t_station_rows = target_station_data.shape[0]
+        active_date =  parser.parse(end_date)
+        active_station = self.data_source.active_stations(k_stations, active_day_range=active_date)
+        if len(active_station)<1:
+            return ValueError("There is no active station to query data")
+        k = self.num_k_stations
+        for stn in active_station:
+            if k<0:  # get only k station data.
+                break
+            current_data = self.data_source.daily_data(stn, self.variable, start_date, end_date)
+            # check the station data match the target stations.
+            if current_data is None or (current_data.shape!=t_station_rows):
+                continue
+            station_data[stn] = current_data
+            k -=1
 
-        active_station = self.data_source.get_active_station(k_stations.keys())
+        if len(station_data.keys())<1:
+            print("No nearby station match the target station.")
+            return
+        else:
+            print "There are %d available station to use"%station_data.keys()
 
-        for station in active_station:
-            vw = make_view(target_station_data, k_stations)
-        self._modules[0].train(vw.x, vw.y)
+        # Make view using the stations.
+        # fit the model with the view.
+        #for station in active_station:
+        #    vw = make_view(target_station_data, k_stations)
+        #self._modules[0].train(vw.x, vw.y)
         return self
     #
-    # def fetch_data(self, target_station, variable, date_from, date_to, check_size=True, **kwargs):
+    # def fetch_data(self, target_station, variable, start_date, end_date, check_size=True, **kwargs):
     #     fetched_data = self.data_source.measurements(target_station, variable,
-    #                                                  date_from=date_from, date_to=date_to,
+    #                                                  start_date=start_date, end_date=end_date,
     #                                                  group=kwargs.get('group'))
     #     if fetched_data:
     #         fetched_data = fetched_data[variable].as_matrix()
     #     else:
     #         return ValueError("Target source is empty")
     #     if check_size:
-    #         date_diff = (date_to - date_from).days()
+    #         date_diff = (end_date - start_date).days()
     #         if fetched_data.shape[0] != date_diff:
     #             return ValueError("Mismatch in the date and returned data")
     #
     #     return fetched_data
     #
-    # def build_view(self, target_station, date_from, date_to, **kwargs):
+    # def build_view(self, target_station, start_date, end_date, **kwargs):
     #     """
     #     This should load all the views added with its metadata.
     #     Given range of date, construct views from the given view names. Construct view for each stations.
     #     Args:
-    #         date_from:
-    #         date_to:
+    #         start_date:
+    #         end_date:
     #         **kwargs:
     #
     #     Returns:
@@ -144,11 +168,11 @@ class MainRQC:
     #
     #     view_list = OrderedDict()
     #     query_data = lambda station_name: self.data_source.measurements(station_name, self.variable,
-    #                                                                     date_from=date_from, date_to=date_to,
+    #                                                                     start_date=start_date, end_date=end_date,
     #                                                                     group=kwargs.get('group'))[
     #         self.variable].as_matrix()
     #
-    #     target_station_data = self.__fetch_data(target_station, self.variable, date_from, date_to,
+    #     target_station_data = self.__fetch_data(target_station, self.variable, start_date, end_date,
     #                                             group=kwargs.get("group"))  # query_data(target_station)
     #
     #     if nearby_stations is None or target_station is None:
@@ -176,13 +200,13 @@ class MainRQC:
     #     return model_list  # , model_list2)
     #
     # #
-    # # def fit(self, target_station, date_from, date_to, **kwargs):
+    # # def fit(self, target_station, start_date, end_date, **kwargs):
     # #
     # #     # Build view of the data, using the added view
     # #     # For each view build a model added to the system or build view add to separate views.
     # #
     # #
-    # #     view_list = self.build_view(target_station, date_from, date_to, **kwargs)
+    # #     view_list = self.build_view(target_station, start_date, end_date, **kwargs)
     # #     return self.fit_from_view(view_list)
     # #     # train model for each view.
     # #     # pairwise = kwargs.get('pairwise')
@@ -204,8 +228,8 @@ class MainRQC:
     # def resultant_score(self, model_1, model_2):
     #     pass
     #
-    # def score(self, model_registry, target_station, date_from, date_to, **kwargs):
-    #     view_object_list = self.build_view(target_station, date_from, date_to, **kwargs)
+    # def score(self, model_registry, target_station, start_date, end_date, **kwargs):
+    #     view_object_list = self.build_view(target_station, start_date, end_date, **kwargs)
     #     return self.score_from_view(model_registry=model_registry, view_object_list=view_object_list)
     #
     # def score_from_view(self, model_registry, view_object_list):
@@ -246,4 +270,9 @@ class MainRQC:
 
 if __name__ == "__main__":
     x = 2
-    dd = MainRQC()
+    dd = MainRQC(data_source=TahmoDataSource(nearby_station_location="datasource/station_nearby.json"),
+                 target_station="TA00055", radius=200)
+    dd.fit(start_date=(datetime.datetime.utcnow()-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M'),
+           end_date=(datetime.datetime.utcnow() - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M'))
+
+## TODO: Work on downloaded data, the bluemix data is unreliable.
