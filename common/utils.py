@@ -570,6 +570,7 @@ class Timer(object):
         tdiff = self.elapsed()
         return "%s %f sec(s)" % (msg, tdiff)
 
+
 def merge_two_dicts(x, y):
     z = x.copy()
     z.update(y)

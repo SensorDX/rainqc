@@ -1,12 +1,10 @@
 from common.weather_variable import RAIN
 from view.view import View
-from model import Module, MixLinearModel
+from model import Module
 from collections import OrderedDict
-import datetime
-from dateutil import parser, tz
-from pytz import utc, timezone
-from datasource.tahmo_datasource import TahmoDataSource
-from datasource.FakeTahmo import FakeTahmo
+from dateutil import parser
+from pytz import utc
+from datasource.abcdatasource import DataSource
 from common.utils import is_valid_date
 
 
@@ -25,9 +23,9 @@ class MainRQC(object):
         Args:
             target_station (str
             variable (str): Weather variable code
-            num_k_stations:
-            radius:
-            data_source:
+            num_k_stations (int): Number of nearest stations
+            radius (int): radius in km
+            data_source (DataSource): interface for querying data source
         """
         self.data_source = data_source
         self.target_station = target_station
@@ -62,31 +60,6 @@ class MainRQC(object):
         elif '.' in name:
             raise KeyError("view name can't contain \".\"")
         self.views[name] = view
-
-    def available_neighbors(self, target_station, start_date, end_date):
-        """
-        Get available neigbhor stations.
-        Args:
-            target_station:
-
-        Returns:
-
-        """
-        # TODO: handle start_date and end_date
-        nearby_station_list = self.data_source.nearby_stations(target_station, self.radius)
-        available_stations = {}
-        k = self.num_k_stations
-        for stn in nearby_station_list:
-            if self.data_source.check_data(stn, self.variable, start_date, end_date):
-                available_stations[stn] = self.data_source.get_data(stn, self.variable, start_date, end_date)
-                k -= 1
-            if k < 1:
-                break
-        if len(available_stations) < 1:
-            raise ValueError("No available station in the given range")
-        return available_stations
-
-        # check if the stations are active and have data for the given range date.
 
     def fetch_data(self, start_date, end_date, target_station=None, k_station_list=None):
 
@@ -156,7 +129,7 @@ class MainRQC(object):
         1. Fetch data from db
         2. get_nearby station.
         3. Create view using the stations.
-        4. If things passed, train the model.
+        4. If all passed, fit the model defined at self._modules
         Args:
             start_date:
             end_date:
@@ -165,7 +138,6 @@ class MainRQC(object):
         Returns: self, fitted class of RQC.
 
         """
-        # assert parser.parser(start_date)<=parser.parser(end_date)
 
         is_valid_date(start_date, end_date)
         assert len(self.views) > 0
@@ -191,7 +163,7 @@ class MainRQC(object):
         1. Fetch data from source.
         2. Load nearby station, from saved model.
         3. Create view using the nearby stations.
-        4. Predict using the trained model
+        4. Predict using the trained model at self.modules_registry
 
         Args:
             model_registry:
@@ -227,52 +199,28 @@ class MainRQC(object):
             name, module = self.module_registry.keys()[0], self.module_registry.values()[0]
             result = module.predict(x=vw.x, y=vw.y)
             return {name: result}
+    
+    def save(self, path_name):
+        """
+        Get all fitted modules and parameters.
+        Args:
+            path_name: path to the save the models.
 
-    # def save(self, path_name):
-    #     """
-    #     Save the QC model.
-    #     Args:
-    #         path_name: path to the save the models.
-    #
-    #     Returns:
-    #
-    #     """
-    #     pass
-    #
-    # @classmethod
-    # def load(cls, path_name):
-    #     """
-    #     Load trained RQC model.
-    #     Args:
-    #         path_name:
-    #
-    #     Returns: RQC model.
-    #
-    #     """
-    #     # make sure all available models are saved.
-    #     pass
+        Returns:
+
+        """
 
 
-if __name__ == "__main__":
-    from view.view import PairwiseView
-    from model.hurdle_regression import MixLinearModel
+    @classmethod
+    def load(cls, path_name):
+        """
+        Load trained RQC model.
+        Args:
+            path_name:
 
-    x = 2
-    data_source = FakeTahmo(local_data_source="experiments/dataset/tahmostation2016.csv",
-                            nearby_station="localdatasource/nearest_stations.csv")
-    tahmo_datasource = TahmoDataSource(nearby_station_location="datasource/station_nearby.json")
-    target_station_q = "TA00030"
-    start_date = "2016-01-01"  # (datetime.datetime.now(timezone('utc'))-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M')
-    end_date = "2016-06-30"  # (datetime.datetime.now(timezone('utc')) - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M')
-    dd = MainRQC(data_source=data_source,
-                 target_station=target_station_q, radius=200)
-    dd.add_view(name="pairwise", view=PairwiseView())
-    dd.add_module(name="MixLinearModel", module=MixLinearModel())
-    fitted = dd.fit(start_date=start_date,
-                    end_date=end_date)
-    result = dd.score(start_date=end_date, end_date=start_date)
-    print(result)
+        Returns: RQC model.
 
-## TODO: Work on downloaded data, the bluemix data is unreliable.{ The downloaded data is not also consistent}
-## TODO: Work on synthetic data, and make sure the algorithm can be deployed and tested. Sample rainfall data or weather data, from a given
-## Station and create a perfect data that can work with the algorithm.
+        """
+        # make sure all available models are saved.
+        pass
+

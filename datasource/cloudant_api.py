@@ -5,7 +5,7 @@ from cloudant.client import Cloudant
 from cloudant.result import Result, ResultByKey
 from cloudant.query import Query, QueryResult
 import os
-from data_source import DataSource
+from local_source import DataSource
 project_path ="/home/tadeze/projects/sensordx/rainqc"
 
 class CloudantAuthentication:

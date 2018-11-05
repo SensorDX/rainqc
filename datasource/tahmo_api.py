@@ -1,5 +1,5 @@
 import requests
-from data_source import DataSource
+from local_source import DataSource
 import urllib, urllib2, base64, json, datetime
 
 # Fill in your API credentials

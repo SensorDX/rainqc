@@ -7,10 +7,10 @@ from dateutil import parser, tz
 from datetime import datetime, timedelta
 from common.sdxutils import average_angular, haversine_distance
 from operator import itemgetter
-
-
+from abcdatasource import DataSource
 
 variable_aggregation = {RAIN: np.sum, TEMP: np.mean, WINDR: average_angular, REL: np.mean}
+
 
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=None):
     rows = json_station_data["timeseries"][weather_variable]
@@ -28,10 +28,10 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     return df
 
 
-
-class TahmoDataSource(object):
+class TahmoDataSource(DataSource):
 
     def __init__(self, nearby_station_location="nearest_station.csv"):
+        super(TahmoDataSource, self).__init__()
         # Later will move to config.
         self.header = {
             'authorization': "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
@@ -61,19 +61,17 @@ class TahmoDataSource(object):
         querystring = {"startDate": start_date, "endDate": end_date}
         url = self.time_series_url % station_name
         json_data = self.__get_request(url, querystring).json()
-        if json_data['status']=='error':
-            raise ValueError("Request has error %s"%json_data['error'])
+        if json_data['status'] == 'error':
+            raise ValueError("Request has error %s" % json_data['error'])
 
         if data_format == "json":
             return json_data
         elif data_format == "dataframe":
             return json_to_df(json_data, group=None)
 
-
     def get_stations(self):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
-
 
     def active_stations(self, station_list, active_day_range=datetime.now(tz.tzutc()), threshold=24):
         """
@@ -106,21 +104,21 @@ class TahmoDataSource(object):
         return active_stations
 
     def daily_data(self, station_name, weather_variable, start_date, end_date):
-        json_data = self.get_data(station_name,  start_date, end_date)
-        if len(json_data["timeseries"])<1:
+        json_data = self.get_data(station_name, start_date, end_date)
+        if len(json_data["timeseries"]) < 1:
             return None
-        elif len(json_data["timeseries"][weather_variable])<1:
+        elif len(json_data["timeseries"][weather_variable]) < 1:
             return None
         else:
             df = json_to_df(json_data, weather_variable=weather_variable, group='D')
             return df
 
     def load_nearby_stations(self, target_station, radius=None, k=None):
-        load_station_distance = json.load(open(self.nearby_station_file,"r"))
-        t_station = sorted(load_station_distance[target_station], key= itemgetter('distance'), reverse=False)
+        load_station_distance = json.load(open(self.nearby_station_file, "r"))
+        t_station = sorted(load_station_distance[target_station], key=itemgetter('distance'), reverse=False)
 
         if radius:
-            t_station =[stn for stn in t_station if stn['distance']<radius]
+            t_station = [stn for stn in t_station if stn['distance'] < radius]
 
         if k:
             return t_station[:k]
@@ -138,42 +136,18 @@ class TahmoDataSource(object):
     def compute_nearest_stations(self):
         all_stations = self.get_stations()
 
-        if all_stations["status"]!="success":
-            raise ValueError("Looks there is a problem %s"%all_stations["error"])
+        if all_stations["status"] != "success":
+            raise ValueError("Looks there is a problem %s" % all_stations["error"])
         all_stations = all_stations["stations"]
         metadata = {}
         for ix, stn in enumerate(all_stations):
             loc = stn["location"]
             metadata[stn["id"]] = []
             for n_stn in all_stations:
-                if n_stn==stn:
+                if n_stn == stn:
                     continue
                 jloc = n_stn["location"]
                 dist = haversine_distance(loc["lat"], loc['lng'], jloc["lat"], jloc["lng"])
-                metadata[stn["id"]].append({"site_to":n_stn["id"], "distance":dist,"elevation":n_stn["elevation"]})
-        json.dump(metadata, open("station_nearby.json","w"))
-
-if __name__ == '__main__':
-    target_station = "TA00055"
-    thm = TahmoDataSource("station_nearby.json")
-    start_date = datetime.strftime(datetime.utcnow() - timedelta(200), '%Y-%m-%dT%H:%M')
-    end_date = datetime.strftime(datetime.utcnow() - timedelta(180), '%Y-%m-%dT%H:%M')
-    print (start_date)
-    # print thm.get_stations()
-    #print thm.daily_data(target_station,weather_variable=RAIN, start_date=start_date, end_date=end_date)
-    # print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
-    # get active stations
-    station_list = ['TA00028', 'TA00068', "TA00108", "TA00187"]
-    #thm.compute_nearest_stations()
-    #print thm.load_nearby_stations(target_station, k=5)
-    current_day = datetime.now(tz.tzutc())
-    #print thm.active_stations(station_list, active_day_range=current_day)
-    #print thm.nearby_stations(target_station=target_station, k=20, radius=200)
-    #thm = TahmoDataSource()
-    # print thm.get_stations()
-    # print thm.get_data("TA00021", start_date="2017-09-01", end_date="2017-09-05")
-    kdd = thm.load_nearby_stations("TA00025", radius=100)
-    print (len(kdd), kdd)
-    print (thm.active_stations([stn['site_to'] for stn in kdd]))
-    #print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
+                metadata[stn["id"]].append({"site_to": n_stn["id"], "distance": dist, "elevation": n_stn["elevation"]})
+        json.dump(metadata, open("station_nearby.json", "w"))
 

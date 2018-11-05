@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from datasource.data_source import  LocalDataSource
+from datasource.local_source import  LocalDataSource
 from model.hurdle_regression import MixLinearModel
 from view.feature_extractor import PairwiseView
 

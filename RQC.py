@@ -175,7 +175,7 @@ class RQC(object):
 
 if __name__ == '__main__':
     from datasource.toy_datasource import ToyDataSource
-    from datasource.data_source import LocalDataSource
+    from datasource.local_source import LocalDataSource
 
     rqc = RQC()
     rqc.data_source = LocalDataSource(dir_path='./localdatasource')  # ToyDataSource

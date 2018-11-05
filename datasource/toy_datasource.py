@@ -1,4 +1,4 @@
-from data_source import DataSource, json_to_df
+from local_source import DataSource, json_to_df
 import numpy as np
 import pandas as pd
 import json
