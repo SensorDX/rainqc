@@ -8,5 +8,3 @@ class ModelFactory:
             return LinearRegression()
 
 
-class Module:
-    pass

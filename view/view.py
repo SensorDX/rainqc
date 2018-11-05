@@ -33,9 +33,7 @@ class View(object):
         self.label = None
         self.view_metadata = defaultdict()
 
-
-
-    def make_view(self, target_station, stations, **kwargs):
+    def make_view(self, target_station, k_stations):
         return NotImplementedError
 
 
@@ -48,9 +46,8 @@ class ViewDefinition:
         self.name = name
         self.label = label
         if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
-            #return NameError("The input should be given as ndarray")
-            self.x = x.reshape(-1,1)
-            self.y = y.reshape(-1,1)
+            self.x = x
+            self.y = y
 
 
 class ViewFactory:
@@ -66,29 +63,18 @@ class PairwiseView(View):
         super(PairwiseView, self).__init__()
         self.variable = variable
 
-    def make_view(self, target_station, covariate_stations, **options):
-        """
+    def make_view(self, target_station, k_stations):
 
-        Args:
-            target_station: Nx1 numpy array
-            covariate_stations: list of Nx1 numpy array
-            **options: key,value optional
-
-        Returns: Nxlen(sations) numpy matrix.
-
-        """
-        #print target_station.shape ,
         len_series = target_station.shape[0]
         # Check dimension mismatch.
-        if all(len_series == stn.shape[0] for stn in covariate_stations):
-            return ValueError("Dimension mismatch b/n target station and covariate covariate_stations")
+        if not all([len_series == value.shape[0] for value in k_stations.values()]):
+             raise ValueError("Dimension mismatch b/n target station and one of the k stations")
 
-        tuples_list = [target_station] + covariate_stations
-        print [xx.shape for xx in tuples_list]
+        tuples_list = [target_station] + k_stations.values()
         dt = np.hstack(tuples_list)
-        self.x, self.y = dt[:,1:], dt[:, 0:1]
-        self.label = options.get("label")
-        print dt.shape
-        return self
+        vw = ViewDefinition(name=self.__name__, label=k_stations.keys(),
+                            x=dt[:,1:], y =dt[:, 0:1])
+
+        return vw
 
 

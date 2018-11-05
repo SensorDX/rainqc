@@ -47,10 +47,10 @@ class TahmoDataSource(object):
         try:
             response = requests.request("GET", url, headers=self.header,
                                         params=params)
-        except requests.HTTPError, err:
-            if err.code == 401:
+        except requests.HTTPError as err:
+            if err.errno == 401:
                 raise ValueError("Error: Invalid API credentials")
-            elif err.code == 404:
+            elif err.errno == 404:
                 raise ValueError("Error: The API endpoint is currently unavailable")
             else:
                 raise ValueError("Error: {}".format(err))
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     thm = TahmoDataSource("station_nearby.json")
     start_date = datetime.strftime(datetime.utcnow() - timedelta(200), '%Y-%m-%dT%H:%M')
     end_date = datetime.strftime(datetime.utcnow() - timedelta(180), '%Y-%m-%dT%H:%M')
-    print start_date
+    print (start_date)
     # print thm.get_stations()
     #print thm.daily_data(target_station,weather_variable=RAIN, start_date=start_date, end_date=end_date)
     # print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     # print thm.get_stations()
     # print thm.get_data("TA00021", start_date="2017-09-01", end_date="2017-09-05")
     kdd = thm.load_nearby_stations("TA00025", radius=100)
-    print len(kdd), kdd
-    print thm.active_stations([stn['site_to'] for stn in kdd])
+    print (len(kdd), kdd)
+    print (thm.active_stations([stn['site_to'] for stn in kdd]))
     #print thm.daily_data("TA00021", start_date="2017-09-01", end_date="2017-09-05", weather_variable=RAIN)
 

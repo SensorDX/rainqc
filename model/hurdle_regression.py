@@ -31,7 +31,16 @@ def grid_fit_kde(residual):
     grid.fit(residual)
     return grid.best_params_
 
-class MixLinearModel(object):
+
+class Module(object):
+    def __init__(self):
+        self.name = "Regression_module"
+    def fit(self, x, y, verbose=False, load=False):
+        return NotImplementedError
+    def predict(self, x, y, label=None):
+        return NotImplementedError
+
+class MixLinearModel(Module):
     """
         Mixture of linear model.
         Train logistic regression for 0/1 prediction. And fit weighted linear regression, 
@@ -42,6 +51,7 @@ class MixLinearModel(object):
 
     def __init__(self, linear_reg=LinearRegression(), log_reg=LogisticRegression(),
                  kde=KernelDensity(kernel="gaussian"), eps=0.0001):
+        super(MixLinearModel, self).__init__()
         self.linear_reg = linear_reg
         self.eps = eps 
         self.log_reg = log_reg
@@ -78,7 +88,7 @@ class MixLinearModel(object):
 
         """
         if verbose:
-            print type(x), type(y), x.shape, y.shape
+            print (type(x), type(y), x.shape, y.shape)
 
         if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
             return NameError("The input should be given as ndarray")

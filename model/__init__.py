@@ -1,4 +1,4 @@
-from .hurdle_regression import MixLinearModel
-from .models import Module, ModelFactory
+from .hurdle_regression import MixLinearModel, Module
+from .models import  ModelFactory
 
-__all__ = ['MixLinearModel', 'ModelFactory']
+__all__ = ['MixLinearModel', 'ModelFactory', 'Module']

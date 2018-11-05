@@ -1,10 +1,12 @@
 from common.weather_variable import RAIN
-from model.models import Module
-from view.view import View, ViewDefinition
+from view.view import View
+from model import Module, MixLinearModel
 from collections import OrderedDict
 import datetime
 from dateutil import parser, tz
+from pytz import utc, timezone
 from datasource.tahmo_datasource import TahmoDataSource
+from datasource.FakeTahmo import FakeTahmo
 
 
 class MainRQC:
@@ -30,12 +32,14 @@ class MainRQC:
         self.target_station = target_station
         self.variable = variable
         self.view_registry = OrderedDict()
+        self.module_registry = OrderedDict()
         self.num_k_stations = num_k_stations
         self.radius = radius
-        self._modules = OrderedDict()
+        self._modules = {} #OrderedDict()
         self.training = True
         self.parameters = OrderedDict()
-        self.views = OrderedDict()
+        self.views = {} #OrderedDict()
+        self.k_stations = None
 
     def add_module(self, name, module):
         if not isinstance(module, Module) and module is not None:
@@ -78,12 +82,46 @@ class MainRQC:
             if k < 1:
                 break
         if len(available_stations) < 1:
-            raise ValueError("No available station in the given range");
+            raise ValueError("No available station in the given range")
         return available_stations
 
         # check if the stations are active and have data for the given range date.
 
-    #
+    def fetch_data(self, start_date, end_date, k_station_list=None):
+
+        k_stations_data = {}
+        target_station_data = self.data_source.daily_data(self.target_station, self.variable, start_date, end_date)
+        if target_station_data is None:
+            return ValueError("Target station has no data")
+        if k_station_list is None:
+            k_stations = self.data_source.nearby_stations(target_station=self.target_station, radius=self.radius)
+        else:
+            assert isinstance(k_station_list, list)
+            assert len(k_station_list) > 0
+            k_stations = k_station_list
+
+        nrows = target_station_data.shape[0]
+        active_date = utc.localize(parser.parse(end_date))
+        active_station = self.data_source.active_stations(k_stations, active_day_range=active_date)
+        if len(active_station) < 1:
+            return ValueError("There is no active station to query data")
+
+        k = self.num_k_stations  # Filter k station if #(active stations) > k
+        for stn in active_station:
+            if k < 1:
+                break
+            current_data = self.data_source.daily_data(stn, self.variable, start_date, end_date)
+            if current_data is None or (current_data.shape[0] != nrows):
+                continue
+            k_stations_data[stn] = current_data
+            k -= 1
+        if len(k_stations_data.keys()) < 1:
+            print("All of the active station don't have data starting date {} to {}.".format(start_date, end_date))
+            return
+        else:
+            print ("There are {} available stations to use".format(k_stations_data.keys()))
+        return target_station_data, k_stations_data
+
     def fit(self, start_date, end_date, **kwargs):
         """
         Fit the RQC module using the data from the give date range.
@@ -99,57 +137,77 @@ class MainRQC:
         Returns: self, fitted class of RQC.
 
         """
+        #assert parser.parser(start_date)<=parser.parser(end_date)
+        assert len(self.views) > 0
+        assert len(self._modules) > 0
 
-        station_data = {}
-        target_station_data = self.data_source.daily_data(self.target_station, self.variable, start_date, end_date)
-        if target_station_data is None:
-            return ValueError("Target station has no data")
-        k_stations = self.data_source.nearby_stations(target_station=self.target_station, radius=self.radius)
-        t_station_rows = target_station_data.shape[0]
-        active_date =  parser.parse(end_date)
-        active_station = self.data_source.active_stations(k_stations, active_day_range=active_date)
-        if len(active_station)<1:
-            return ValueError("There is no active station to query data")
-        k = self.num_k_stations
-        for stn in active_station:
-            if k<0:  # get only k station data.
-                break
-            current_data = self.data_source.daily_data(stn, self.variable, start_date, end_date)
-            # check the station data match the target stations.
-            if current_data is None or (current_data.shape!=t_station_rows):
-                continue
-            station_data[stn] = current_data
-            k -=1
+        target_station, k_station = self.fetch_data(start_date, end_date, k_station_list=None)
 
-        if len(station_data.keys())<1:
-            print("No nearby station match the target station.")
-            return
+        if len(self.views) > 1:
+            for vw_name, vw in self.views:
+                self.view_registry[vw_name] = vw.make_view(target_station, k_station)
+
+        elif len(self.views) == 1:
+            # Create a single view
+            vw_name, vw = self.views.keys()[0], self.views.values()[0]
+            self.view_registry[vw_name] = vw.make_view(target_station, k_station)
         else:
-            print "There are %d available station to use"%station_data.keys()
 
-        # Make view using the stations.
-        # fit the model with the view.
-        #for station in active_station:
-        #    vw = make_view(target_station_data, k_stations)
-        #self._modules[0].train(vw.x, vw.y)
+            return ValueError("View object is not added")
+
+        # Train the model.
+        # Get the current view.
+        vw = self.view_registry[vw_name]
+        print (vw.x.shape, vw.y.shape)
+        if len(self._modules) > 1:
+            for name, module in self._modules:
+                self.module_registry[name] = module.fit(vw.x, vw.y)
+        else:
+
+            name, module = self._modules.keys()[0], self._modules.values()[0]
+            self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
+
         return self
-    #
-    # def fetch_data(self, target_station, variable, start_date, end_date, check_size=True, **kwargs):
-    #     fetched_data = self.data_source.measurements(target_station, variable,
-    #                                                  start_date=start_date, end_date=end_date,
-    #                                                  group=kwargs.get('group'))
-    #     if fetched_data:
-    #         fetched_data = fetched_data[variable].as_matrix()
-    #     else:
-    #         return ValueError("Target source is empty")
-    #     if check_size:
-    #         date_diff = (end_date - start_date).days()
-    #         if fetched_data.shape[0] != date_diff:
-    #             return ValueError("Mismatch in the date and returned data")
-    #
-    #     return fetched_data
-    #
-    # def build_view(self, target_station, start_date, end_date, **kwargs):
+
+    def score(self, target_station, start_date, end_date):
+        """
+        1. Fetch data from source.
+        2. Load nearby station, from saved model.
+        3. Create view using the nearby stations.
+        4. Predict using the trained model
+
+        Args:
+            model_registry:
+            target_station:
+            start_date:
+            end_date:
+            **kwargs:
+
+        Returns:
+
+        """
+        target_station, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations)
+        if len(self.view_registry)<1:
+            return ValueError("No valid view found.")
+        if len(self._modules)<1:
+            return ValueError("No available module found.")
+
+        vw = self.view_registry[vw_name]
+        print (vw.x.shape, vw.y.shape)
+        if len(self._modules) > 1:
+            for name, module in self._modules:
+                self.module_registry[name] = module.fit(vw.x, vw.y)
+        else:
+
+            name, module = self._modules.keys()[0], self._modules.values()[0]
+            self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
+
+        #pass
+     #view_object_list = self.build_view(target_station, start_date, end_date, **kwargs)
+     #return self.score_from_view(model_registry=model_registry, view_object_list=view_object_list)
+
+
+# def build_view(self, target_station, start_date, end_date, **kwargs):
     #     """
     #     This should load all the views added with its metadata.
     #     Given range of date, construct views from the given view names. Construct view for each stations.
@@ -269,10 +327,24 @@ class MainRQC:
 
 
 if __name__ == "__main__":
+    from view.view import PairwiseView
+    from model.hurdle_regression import MixLinearModel
     x = 2
-    dd = MainRQC(data_source=TahmoDataSource(nearby_station_location="datasource/station_nearby.json"),
-                 target_station="TA00055", radius=200)
-    dd.fit(start_date=(datetime.datetime.utcnow()-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M'),
-           end_date=(datetime.datetime.utcnow() - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M'))
+    data_source = FakeTahmo(local_data_source="experiments/dataset/tahmostation2016.csv",
+                            nearby_station="localdatasource/nearest_stations.csv")
+    tahmo_datasource = TahmoDataSource(nearby_station_location="datasource/station_nearby.json")
+    target_station = "TA00030"
+    start_date ="2016-01-01" #(datetime.datetime.now(timezone('utc'))-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M')
+    end_date ="2016-06-30" #(datetime.datetime.now(timezone('utc')) - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M')
+    dd = MainRQC(data_source=data_source,
+                 target_station=target_station, radius=200)
+    dd.add_view(name="pairwise", view=PairwiseView())
+    dd.add_module(name="MixLinearModel", module=MixLinearModel())
+    fitted = dd.fit(start_date=start_date,
+           end_date=end_date)
+    print(fitted)
 
-## TODO: Work on downloaded data, the bluemix data is unreliable.
+
+## TODO: Work on downloaded data, the bluemix data is unreliable.{ The downloaded data is not also consistent}
+## TODO: Work on synthetic data, and make sure the algorithm can be deployed and tested. Sample rainfall data or weather data, from a given
+## Station and create a perfect data that can work with the algorithm.
