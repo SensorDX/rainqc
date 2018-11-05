@@ -6,12 +6,11 @@ import os
 import os.path
 import errno
 import pandas as pd
-from pandas import DataFrame
 import sys
 from timeit import default_timer as timer
 from datetime import timedelta
 import traceback
-
+from dateutil import parser
 from statsmodels.distributions.empirical_distribution import ECDF
 import ranking
 from ranking import Ranking
@@ -575,3 +574,14 @@ def merge_two_dicts(x, y):
     z = x.copy()
     z.update(y)
     return z
+
+
+def is_valid_date(start_date, end_date):
+    try:
+
+        start_date = parser.parse(start_date)
+        end_date = parser.parse(end_date)
+        if start_date > end_date:
+            raise ValueError("Start date {} could not be larger than end date {}".format(start_date, end_date))
+    except ValueError as err:
+        raise err
