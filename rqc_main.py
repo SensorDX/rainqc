@@ -1,4 +1,4 @@
-from common.weather_variable import RAIN
+from definition import RAIN
 from view.view import View
 from model import Module
 from collections import OrderedDict
@@ -199,7 +199,7 @@ class MainRQC(object):
             name, module = self.module_registry.keys()[0], self.module_registry.values()[0]
             result = module.predict(x=vw.x, y=vw.y)
             return {name: result}
-    
+
     def save(self, path_name):
         """
         Get all fitted modules and parameters.

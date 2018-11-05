@@ -1,6 +1,5 @@
 import pandas as pd
 from abcdatasource import DataSource
-from common.weather_variable import RAIN
 
 
 class FakeTahmo(DataSource):

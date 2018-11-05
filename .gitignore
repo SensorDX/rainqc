@@ -63,9 +63,6 @@ local_settings.py
 instance/
 .webassets-cache
 
-# Scrapy stuff:
-.scrapy
-
 # Sphinx documentation
 docs/_build/
 
@@ -93,10 +90,6 @@ ENV/
 env.bak/
 venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
-
 # Rope project settings
 .ropeproject
 
@@ -107,3 +100,6 @@ venv.bak/
 .mypy_cache/
 localdatasource/stations/*.json
 experiments/*.???*
+
+# local config
+common/config.json
