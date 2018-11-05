@@ -1,14 +1,14 @@
 import json
-from common.weather_variable import *
+from definition import *
 import requests
 import numpy as np
 import pandas as pd
 from dateutil import parser, tz
-from datetime import datetime, timedelta
+from datetime import datetime
 from common.sdxutils import average_angular, haversine_distance
 from operator import itemgetter
 from abcdatasource import DataSource
-
+from definition import ROOT_DIR
 variable_aggregation = {RAIN: np.sum, TEMP: np.mean, WINDR: average_angular, REL: np.mean}
 
 
@@ -33,15 +33,26 @@ class TahmoDataSource(DataSource):
     def __init__(self, nearby_station_location="nearest_station.csv"):
         super(TahmoDataSource, self).__init__()
         # Later will move to config.
-        self.header = {
-            'authorization': "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
-            'cache-control': "no-cache"
-        }
+        config_path = os.path.join(ROOT_DIR,'common/config.json')
+        if not os.path.exists(config_path):
+            raise ValueError("{} doesn't exist".format(config_path))
+        config = json.load(open(config_path, 'r'))
+        tahmo_connection = config['tahmo']
+        self.header = tahmo_connection['header']
+        self.timeseries_url = tahmo_connection['timeseries']
+        self.cm_url = tahmo_connection["cm_url"]
+        self.nearby_station_file = os.path.join(ROOT_DIR,"datasource/"+tahmo_connection["nearby_station"])
+        self.station_url = tahmo_connection["station_url"]
 
-        self.time_series_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s/rawMeasurements"
-        self.station_url = "https://tahmoapi.mybluemix.net/v1/stations"
-        self.cm_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s%"
-        self.nearby_station_file = nearby_station_location
+        # self.header = {
+        #     'authorization': "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
+        #     'cache-control': "no-cache"
+        # }
+        #
+        # self.timeseries_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s/rawMeasurements"
+        # self.station_url = "https://tahmoapi.mybluemix.net/v1/stations"
+        # self.cm_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s%"
+        # self.nearby_station_file = nearby_station_location
 
     def __get_request(self, url, params={}):
         try:
@@ -59,7 +70,7 @@ class TahmoDataSource(DataSource):
 
     def get_data(self, station_name, start_date, end_date, data_format="json"):
         querystring = {"startDate": start_date, "endDate": end_date}
-        url = self.time_series_url % station_name
+        url = self.timeseries_url % station_name
         json_data = self.__get_request(url, querystring).json()
         if json_data['status'] == 'error':
             raise ValueError("Request has error %s" % json_data['error'])
