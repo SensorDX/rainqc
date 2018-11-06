@@ -163,20 +163,19 @@ class MixLinearModel(Module):
     def to_json(self, model_id="001", model_path="rainqc_model"):
 
         model_config = {
-            "model_id": model_id,
             "kde_model": self.kde,
             "logistic_model": self.log_reg,
             "linear_model": self.linear_reg
         }
         return model_config
-        #json.dump(model_config, open(os.path.join(model_path, model_id + ".localdatasource"), "wb"))
 
-    def from_json(self, model_config, model_id="001", model_path="rainqc_model"):
-        #js = json.load(os.path.join(model_path, model_id + ".localdatasource"), "rb")
-        js = model_config
-        self.kde = model_config['kde_model']
-        self.linear_reg = model_config['linear_model']
-        self.log_reg = model_config['logistic_model']
+    @classmethod
+    def from_json(cls, model_config):
+
+        mlm = MixLinearModel(linear_reg=model_config['linear_model'], log_reg=model_config['logistic_model'],
+                             kde=model_config['kde_model'])
+
+        return mlm
 
     def save(self, model_id="001", model_path="rainqc_model"):
         """

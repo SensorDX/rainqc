@@ -6,7 +6,8 @@ import datetime
 if __name__ == "__main__":
     from view.view import PairwiseView
     from model.hurdle_regression import MixLinearModel
-
+    fd = globals()['FakeTahmo']()
+    print(fd)
     x = 2
     data_sourcex = FakeTahmo(local_data_source="experiments/dataset/tahmostation2016.csv",
                             nearby_station="localdatasource/nearest_stations.csv")
@@ -28,7 +29,9 @@ if __name__ == "__main__":
     joblib.dump(jj, open('dump.pk','w'))
     dx = MainRQC.load(jj)
     result2 = dx.score(start_date=start_date, end_date=end_date)
-    assert result==result2
+    print (result2)
+    assert all([r1==r2 for r1, r2 in zip(result, result2)])
+    #assert result==result2
 ## TODO: Work on downloaded data, the bluemix data is unreliable.{ The downloaded data is not also consistent}
 ## TODO: Work on synthetic data, and make sure the algorithm can be deployed and tested. Sample rainfall data or weather data, from a given
 ## Station and create a perfect data that can work with the algorithm.

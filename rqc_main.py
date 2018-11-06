@@ -6,6 +6,7 @@ from dateutil import parser
 from pytz import utc
 from datasource.abcdatasource import DataSource
 from datasource.fake_tahmo import FakeTahmo
+
 from common.utils import is_valid_date
 
 
@@ -41,7 +42,6 @@ class MainRQC(object):
         self._views = {}  # OrderedDict()
         self.k_stations = None
 
-
     def add_module(self, name, module):
         if not isinstance(module, Module) and module is not None:
             raise TypeError("{} is not a Module subclass".format(
@@ -69,26 +69,8 @@ class MainRQC(object):
         self._parameters['num_k_stations'] = self.num_k_stations
         self._parameters["radius"] = self.radius
         self._parameters['variable'] = self.variable
-        self._parameters["_views"] = self._views.keys()
         self._parameters["_models"] = self._modules.keys()
         self._parameters["k_stations"] = self.k_stations
-        #return self._parameters
-
-    # def set_parameters(self, _parameters):
-    #
-    #     for key, value in _parameters.items():
-    #         if key in self.__dict__:
-    #             if key == "data_source":
-    #                 continue
-    #             setattr(self, key, value)
-    #             if key in self._parameters:
-    #                 continue
-    #             self._parameters[key] = value
-    #         else:
-    #             continue
-    #
-
-
 
     def fetch_data(self, start_date, end_date, target_station=None, k_station_list=None):
 
@@ -138,7 +120,6 @@ class MainRQC(object):
         Returns:
 
         """
-       # trained_views = {}
         if len(self._views) > 1:
             for vw_name, vw in self._views:
                 self.view_registry[vw_name] = vw.make_view(target_station_data, k_station_data)
@@ -218,7 +199,7 @@ class MainRQC(object):
         # Check how many view definition are available.
         vw_name, vw = self.make_view(target_station_data, k_station_data)
         scores = {}
-        print (vw.x.shape, vw.y.shape)
+
         if len(self.module_registry) > 1:
             for name, module in self._modules:
                 scores[name] = module.predict(x=vw.x, y=vw.y)
@@ -229,7 +210,7 @@ class MainRQC(object):
             result = module.predict(x=vw.x, y=vw.y)
             return {name: result}
 
-    def save(self, path_name=None):
+    def save(self, serialize=False):
         """
         Get all fitted modules and _parameters.
         Items to save
@@ -239,9 +220,9 @@ class MainRQC(object):
         2. View object and its parameter
         3. Various parameter
         Args:
-            path_name: path to the save the models.
+            serialize (bool): If true pickle the model to file. Default False.
 
-        Returns:
+        Returns: JSON representation of trained model
 
         """
         # Assume the model is single for now.
@@ -251,10 +232,11 @@ class MainRQC(object):
         for model_name, model in self.module_registry.items():
             rqc_config["models"][model_name] = model.to_json()
         for view_name, view in self.view_registry.items():
-            rqc_config['views'][view_name] = view.name
+            rqc_config['views'][view_name] = view_name
         rqc_config["parameters"] = self._parameters
         rqc_config["data_source"] = {type(self.data_source).__name__: self.data_source.to_json()}
-
+        if serialize:
+            pass
         return rqc_config
 
     @classmethod
@@ -262,27 +244,26 @@ class MainRQC(object):
         """
         Load trained RQC model.
         Args:
-            path_name (dict): Serialized model representation.
+            rqc_config (dict): Serialized model representation.
 
         Returns: RQC model.
 
         """
+        if rqc_config is None:
+            raise ValueError("The model dict is empty/None. {}".format(rqc_config))
+
         # make sure all available models are saved.
         # make sure it is valid json format and have all model.
         rqc = MainRQC()
-        #rqc.set_parameters(rqc_config['parameters'])
-        # set parameters
-        print rqc_config["parameters"]
+
         for param, value in rqc_config["parameters"].items():
             if param in rqc.__dict__:
-                if param =='views':
-                    continue
                 setattr(rqc, param, value)
 
-
         ds_name, ds_config = next(rqc_config["data_source"].iteritems())
-        #rqc.data_source = globals()[ds_name].from_json(ds_config)
-        rqc.data_source = FakeTahmo.from_json(ds_config)
+        ds_cls = globals()[ds_name]
+        rqc.data_source = ds_cls.from_json(ds_config)
+
         for model_name, model_config in rqc_config["models"].items():
             rqc.module_registry[model_name] = ModelFactory.get_model(model_name).from_json(model_config)
         for view_name, view_config in rqc_config["views"].items():
@@ -290,6 +271,4 @@ class MainRQC(object):
 
         return rqc
 
-        #module_registry.append(rqc_config["model_config"])
-
-    #TODO: Fix the error with the view saving & loading operations, datasource loading.
+#TODO: Error handling with the model parameters.
