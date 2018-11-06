@@ -1,2 +1,3 @@
-# rainqc
+# RQC
+`detail coming soon..`
 
