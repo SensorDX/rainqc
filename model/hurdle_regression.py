@@ -164,17 +164,19 @@ class MixLinearModel(Module):
 
         model_config = {
             "model_id": model_id,
-            "kde_model": pickle.dumps(self.kde),
-            "logistic_model": pickle.dumps(self.log_reg),
-            "linear_model": pickle.dumps(self.linear_reg)
+            "kde_model": self.kde,
+            "logistic_model": self.log_reg,
+            "linear_model": self.linear_reg
         }
-        json.dump(model_config, open(os.path.join(model_path, model_id + ".localdatasource"), "wb"))
+        return model_config
+        #json.dump(model_config, open(os.path.join(model_path, model_id + ".localdatasource"), "wb"))
 
-    def from_json(self, model_id="001", model_path="rainqc_model"):
-        js = json.load(os.path.join(model_path, model_id + ".localdatasource"), "rb")
-        self.kde = pickle.loads(js['kde_model'])
-        self.linear_reg = pickle.loads(js['linear_model'])
-        self.log_reg = pickle.loads(js['logistic_model'])
+    def from_json(self, model_config, model_id="001", model_path="rainqc_model"):
+        #js = json.load(os.path.join(model_path, model_id + ".localdatasource"), "rb")
+        js = model_config
+        self.kde = model_config['kde_model']
+        self.linear_reg = model_config['linear_model']
+        self.log_reg = model_config['logistic_model']
 
     def save(self, model_id="001", model_path="rainqc_model"):
         """
@@ -182,14 +184,17 @@ class MixLinearModel(Module):
         Returns:
 
         """
-        # model_config = {"model_id":model_id,"kde":self.kde, "zeroone":self.log_reg,"regression":self.linear_reg}
+        # model_config = {"model_id":model_id,
+        #                 "kde":self.kde,
+        #                 "logistic_reg":self.log_reg,
+        #                 "linear_regression":self.linear_reg}
         # localdatasource.dump(model_config,open(model_id+".localdatasource","wb"))
         current_model = os.path.join(model_path, model_id)
         if not os.path.exists(current_model):
             os.makedirs(current_model)
-        joblib.dump(self.kde, os.path.join(current_model, "kde_model.sv"))
-        joblib.dump(self.linear_reg, os.path.join(current_model, "linear_model.sv"))
-        joblib.dump(self.log_reg, os.path.join(current_model, "logistic_model.sv"))
+        joblib.dump(self.kde, os.path.join(current_model, "kde_model.pk"))
+        joblib.dump(self.linear_reg, os.path.join(current_model, "linear_model.pk"))
+        joblib.dump(self.log_reg, os.path.join(current_model, "logistic_model.pk"))
 
     @classmethod
     def load(cls, model_id="001", model_path="rainqc_model"):
@@ -198,8 +203,8 @@ class MixLinearModel(Module):
         if not os.path.exists(loaded_model):
             return ValueError("Directory for saved models don't exist")
 
-        reg_model = joblib.load(os.path.join(loaded_model, "linear_model.sv"))
-        kde = joblib.load(os.path.join(loaded_model, "kde_model.sv"))
-        log_reg = joblib.load(os.path.join(loaded_model, "logistic_model.sv"))  # pickle.load(model_config['zerone'])
+        reg_model = joblib.load(os.path.join(loaded_model, "linear_model.pk"))
+        kde = joblib.load(os.path.join(loaded_model, "kde_model.pk"))
+        log_reg = joblib.load(os.path.join(loaded_model, "logistic_model.pk"))  # pickle.load(model_config['zerone'])
         mxll = MixLinearModel(linear_reg=reg_model, log_reg=log_reg, kde=kde)
         return mxll

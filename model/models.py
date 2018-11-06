@@ -1,10 +1,12 @@
 from hurdle_regression import MixLinearModel, LinearRegression
 class ModelFactory:
     @staticmethod
-    def create_model(model_name):
-        if model_name == 'MixLinear':
+    def get_model(model_name):
+        if model_name == 'MixLinearModel':
             return MixLinearModel()
-        if model_name == 'Linear':
+        if model_name == 'LinearRegression':
             return LinearRegression()
+
+
 
 

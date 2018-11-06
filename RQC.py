@@ -58,8 +58,8 @@ class RQC(object):
 
     def build_view(self, target_station, date_from, date_to, **kwargs):
         """
-        This should load all the views added with its metadata.
-        Given range of date, construct views from the given view names. Construct view for each stations.
+        This should load all the _views added with its metadata.
+        Given range of date, construct _views from the given view names. Construct view for each stations.
         Args:
             date_from:
             date_to:
@@ -108,7 +108,7 @@ class RQC(object):
     def fit(self, target_station, date_from, date_to, **kwargs):
 
         # Build view of the data, using the added view
-        # For each view build a model added to the system or build view add to separate views.
+        # For each view build a model added to the system or build view add to separate _views.
 
 
         view_list = self.build_view(target_station, date_from, date_to, **kwargs)

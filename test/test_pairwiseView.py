@@ -21,7 +21,7 @@ class TestPairwiseView(TestCase):
         self.assertEqual(y.shape, (self.n, self.num_stations-1))
         self.assertIsNone(self.pv.label)
 
-        ## Test multiple pairwise views
+        ## Test multiple pairwise _views
         for i in range(self.num_stations-1):
             vw = self.pv.make_view(self.stations[:, 0:1:],
                                    [self.stations[:, (i+1):(i+2):]]).x

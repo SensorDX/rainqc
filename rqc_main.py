@@ -1,10 +1,11 @@
 from definition import RAIN
-from view.view import View
-from model import Module
+from view.view import View, ViewFactory
+from model import Module, ModelFactory
 from collections import OrderedDict
 from dateutil import parser
 from pytz import utc
 from datasource.abcdatasource import DataSource
+from datasource.fake_tahmo import FakeTahmo
 from common.utils import is_valid_date
 
 
@@ -36,9 +37,10 @@ class MainRQC(object):
         self.radius = radius
         self._modules = {}  # OrderedDict()
         self.training = True
-        self.parameters = OrderedDict()
-        self.views = {}  # OrderedDict()
+        self._parameters = OrderedDict()
+        self._views = {}  # OrderedDict()
         self.k_stations = None
+
 
     def add_module(self, name, module):
         if not isinstance(module, Module) and module is not None:
@@ -55,11 +57,38 @@ class MainRQC(object):
     def add_view(self, name, view):
         if not isinstance(view, View) and view is not None:
             raise TypeError("{} is not a view class".format(type(view)))
-        elif hasattr(self, name) and name not in self.views:
+        elif hasattr(self, name) and name not in self._views:
             raise KeyError("attribute '{}' already exists".format(name))
         elif '.' in name:
             raise KeyError("view name can't contain \".\"")
-        self.views[name] = view
+        self._views[name] = view
+
+    def set_parameters(self):
+        self._parameters['data_source'] = type(self.data_source).__name__
+        self._parameters['target_station'] = self.target_station
+        self._parameters['num_k_stations'] = self.num_k_stations
+        self._parameters["radius"] = self.radius
+        self._parameters['variable'] = self.variable
+        self._parameters["_views"] = self._views.keys()
+        self._parameters["_models"] = self._modules.keys()
+        self._parameters["k_stations"] = self.k_stations
+        #return self._parameters
+
+    # def set_parameters(self, _parameters):
+    #
+    #     for key, value in _parameters.items():
+    #         if key in self.__dict__:
+    #             if key == "data_source":
+    #                 continue
+    #             setattr(self, key, value)
+    #             if key in self._parameters:
+    #                 continue
+    #             self._parameters[key] = value
+    #         else:
+    #             continue
+    #
+
+
 
     def fetch_data(self, start_date, end_date, target_station=None, k_station_list=None):
 
@@ -109,16 +138,16 @@ class MainRQC(object):
         Returns:
 
         """
-        trained_views = {}
-        if len(self.views) > 1:
-            for vw_name, vw in self.views:
-                trained_views[vw_name] = vw.make_view(target_station_data, k_station_data)
-            return trained_views.keys(), trained_views.values()
-        elif len(self.views) == 1:
+       # trained_views = {}
+        if len(self._views) > 1:
+            for vw_name, vw in self._views:
+                self.view_registry[vw_name] = vw.make_view(target_station_data, k_station_data)
+            return self.view_registry.keys(), self.view_registry.values()
+        elif len(self._views) == 1:
             # Create a single view
-            vw_name, vw = self.views.keys()[0], self.views.values()[0]
-            trained_views[vw_name] = vw.make_view(target_station_data, k_station_data)
-            return vw_name, trained_views[vw_name]
+            vw_name, vw = self._views.keys()[0], self._views.values()[0]
+            self.view_registry[vw_name] = vw.make_view(target_station_data, k_station_data)
+            return vw_name, self.view_registry[vw_name]
         else:
 
             raise ValueError("View object is not added")
@@ -140,7 +169,7 @@ class MainRQC(object):
         """
 
         is_valid_date(start_date, end_date)
-        assert len(self.views) > 0
+        assert len(self._views) > 0
         assert len(self._modules) > 0
 
         target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=None)
@@ -181,7 +210,7 @@ class MainRQC(object):
             target_station = self.target_station
         target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations,
                                                               target_station=target_station)
-        if len(self.views) < 1:
+        if len(self._views) < 1:
             return ValueError("No valid view definition found.")
         if len(self.module_registry) < 1:
             return ValueError("No available fitted module found.")
@@ -200,27 +229,67 @@ class MainRQC(object):
             result = module.predict(x=vw.x, y=vw.y)
             return {name: result}
 
-    def save(self, path_name):
+    def save(self, path_name=None):
         """
-        Get all fitted modules and parameters.
+        Get all fitted modules and _parameters.
+        Items to save
+        return JSON representation of the model.
+        -------------
+        1. Predictive model and its parameter
+        2. View object and its parameter
+        3. Various parameter
         Args:
             path_name: path to the save the models.
 
         Returns:
 
         """
+        # Assume the model is single for now.
+        # May be use globals()[className)(constructor) for creating class from string.
+        rqc_config = {"models":{}, "views":{}}
+        self.set_parameters()
+        for model_name, model in self.module_registry.items():
+            rqc_config["models"][model_name] = model.to_json()
+        for view_name, view in self.view_registry.items():
+            rqc_config['views'][view_name] = view.name
+        rqc_config["parameters"] = self._parameters
+        rqc_config["data_source"] = {type(self.data_source).__name__: self.data_source.to_json()}
 
+        return rqc_config
 
     @classmethod
-    def load(cls, path_name):
+    def load(cls, rqc_config):
         """
         Load trained RQC model.
         Args:
-            path_name:
+            path_name (dict): Serialized model representation.
 
         Returns: RQC model.
 
         """
         # make sure all available models are saved.
-        pass
+        # make sure it is valid json format and have all model.
+        rqc = MainRQC()
+        #rqc.set_parameters(rqc_config['parameters'])
+        # set parameters
+        print rqc_config["parameters"]
+        for param, value in rqc_config["parameters"].items():
+            if param in rqc.__dict__:
+                if param =='views':
+                    continue
+                setattr(rqc, param, value)
 
+
+        ds_name, ds_config = next(rqc_config["data_source"].iteritems())
+        #rqc.data_source = globals()[ds_name].from_json(ds_config)
+        rqc.data_source = FakeTahmo.from_json(ds_config)
+        for model_name, model_config in rqc_config["models"].items():
+            rqc.module_registry[model_name] = ModelFactory.get_model(model_name).from_json(model_config)
+        for view_name, view_config in rqc_config["views"].items():
+            rqc._views[view_name] = ViewFactory.get_view(view_name)
+
+        return rqc
+
+        #module_registry.append(rqc_config["model_config"])
+
+    #TODO: Fix the error with the view saving & loading operations, datasource loading.

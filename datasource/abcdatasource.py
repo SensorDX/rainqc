@@ -22,3 +22,9 @@ class DataSource(object):
     def active_stations(self, station_list, active_day_range):
         return NotImplementedError
 
+    def to_json(self):
+        return NotImplementedError
+    @classmethod
+    def from_json(cls, json_config):
+        return NotImplementedError
+

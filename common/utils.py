@@ -489,7 +489,7 @@ def read_data_as_matrix(opts):
     Important: Assumes that the first column has the label \in {anomaly, nominal}
 
     :param opts: AadOpts
-        Supplies parameters like file name, whether first row contains header, etc...
+        Supplies _parameters like file name, whether first row contains header, etc...
     :return: numpy.ndarray
     """
     if opts.labelindex != 1:

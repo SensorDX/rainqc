@@ -44,16 +44,6 @@ class TahmoDataSource(DataSource):
         self.nearby_station_file = os.path.join(ROOT_DIR,"datasource/"+tahmo_connection["nearby_station"])
         self.station_url = tahmo_connection["station_url"]
 
-        # self.header = {
-        #     'authorization': "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
-        #     'cache-control': "no-cache"
-        # }
-        #
-        # self.timeseries_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s/rawMeasurements"
-        # self.station_url = "https://tahmoapi.mybluemix.net/v1/stations"
-        # self.cm_url = "https://tahmoapi.mybluemix.net/v1/timeseries/%s%"
-        # self.nearby_station_file = nearby_station_location
-
     def __get_request(self, url, params={}):
         try:
             response = requests.request("GET", url, headers=self.header,

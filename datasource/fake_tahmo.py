@@ -1,5 +1,7 @@
 import pandas as pd
+from definition import ROOT_DIR
 from abcdatasource import DataSource
+import os
 
 
 class FakeTahmo(DataSource):
@@ -7,13 +9,15 @@ class FakeTahmo(DataSource):
     def get_data(self, station_name, start_date, end_date, data_format="json"):
         pass
 
-    def __init__(self, local_data_source="../experiments/dataset/tahmostation2016.csv",
-                 nearby_station="../localdatasource/nearest_stations.csv"):
+    def __init__(self, local_data_source="experiments/dataset/tahmostation2016.csv",
+                 nearby_station="localdatasource/nearest_stations.csv"):
         super(FakeTahmo, self).__init__()
-        self.data = pd.read_csv(local_data_source)
-        self.nearby_station_file = nearby_station
+        self.local_data_source = os.path.join(ROOT_DIR, local_data_source)
+        self.data = pd.read_csv(self.local_data_source)
+        self.nearby_station_file = os.path.join(ROOT_DIR, nearby_station)
         date_range = pd.date_range(start='2016-01-01', end="2016-12-31", freq='1D')
         self.data.index = date_range
+
         # self.data.rename(columns={0:RAIN}, inplace=True)
 
     def stations(self):
@@ -39,6 +43,16 @@ class FakeTahmo(DataSource):
     def active_stations(self, station_list, active_day_range="2016-01-01"):
         return station_list
 
+    def to_json(self):
+        json_config = {"local_data_source": self.local_data_source, "nearby_station_file": self.nearby_station_file}
+        return json_config
+
+    @classmethod
+    def from_json(cls, json_config):
+        fake_tahmo = FakeTahmo(local_data_source=json_config['local_data_source'],
+                               nearby_station=json_config['nearby_station_file'])
+        return fake_tahmo
+
 
 if __name__ == '__main__':
     ft = FakeTahmo()
@@ -46,3 +60,4 @@ if __name__ == '__main__':
     print (ft.nearby_stations('TA00030'))
     # print (ft.data.head(5))
     dayr = ft.daily_data('TA00030', "pr", '2016-02-02', '2016-05-01')
+    print (ft.to_json())

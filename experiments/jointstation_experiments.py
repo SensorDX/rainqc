@@ -687,7 +687,7 @@ if __name__ == '__main__':
         tune_k(target_station)
     elif mode == " K_tuning_all":
 
-        #Tuning parameters
+        #Tuning _parameters
         all_result = []
         #dx = pd.DataFrame()
         for target_station in all_stations[:]:

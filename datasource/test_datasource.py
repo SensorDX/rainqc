@@ -1,5 +1,5 @@
 from tahmo_datasource import TahmoDataSource
-from FakeTahmo import FakeTahmo
+from fake_tahmo import FakeTahmo
 from datetime import datetime, timedelta
 import dateutil
 import pytz
