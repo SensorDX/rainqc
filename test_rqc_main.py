@@ -24,13 +24,14 @@ if __name__ == "__main__":
     result = dd.score(start_date=start_date, end_date=end_date)
     #print(result)
     # save model
-    jj = dd.save()
-    print (jj)
-    joblib.dump(jj, open('dump.pk','w'))
-    dx = MainRQC.load(jj)
-    result2 = dx.score(start_date=start_date, end_date=end_date)
-    print (result2)
-    assert all([r1==r2 for r1, r2 in zip(result, result2)])
+    print result['MixLinearModel'].shape, type(result['MixLinearModel'])
+    # jj = dd.save()
+    # print (jj)
+    # joblib.dump(jj, open('dump.pk','w'))
+    # dx = MainRQC.load(jj)
+    # result2 = dx.score(start_date=start_date, end_date=end_date)
+    # print (result2)
+    # assert all([r1==r2 for r1, r2 in zip(result, result2)])
     #assert result==result2
 ## TODO: Work on downloaded data, the bluemix data is unreliable.{ The downloaded data is not also consistent}
 ## TODO: Work on synthetic data, and make sure the algorithm can be deployed and tested. Sample rainfall data or weather data, from a given

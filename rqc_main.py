@@ -210,7 +210,7 @@ class MainRQC(object):
 
             name, module = self.module_registry.keys()[0], self.module_registry.values()[0]
             result = module.predict(x=vw.x, y=vw.y)
-            return {name: result[:].tolist()}
+            return {name: result}
 
     def save(self, serialize=False):
         """

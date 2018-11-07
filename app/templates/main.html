@@ -1,7 +1,17 @@
 <!doctype html>
 <title>Station management</title>
-{% if station %}
-  <h1>Starting training and scoring for {{ station }}!</h1>
-{% else %}
-  <h1>Station is required later {{ station }}</h1>
-{% endif %}
+<!--{% if station %}-->
+  <!--<h1>Starting training and scoring for {{ station }}!</h1>-->
+<!--{% else %}-->
+  <!--<h1>Station is required later {{ station }}</h1>-->
+<!--{% endif %}-->
+<h1> List of available stations. </h1>
+ <ul id="navigation">
+    {% for station in all_stations %}
+     {% if station['active']==True %}
+          <li><a href="train/{{ station['site_code'] }}?save={{ save }}">{{ station['site_code'] }}</a></li>
+      {% else %}
+          <li><span style="color:red">{{ station['site_code'] }} </span></li>
+    {% endif %}
+   {% endfor %}
+ </ul>

@@ -2,9 +2,10 @@ import sys
 import os
 import shutil
 import time
+import pandas as pd
 import traceback
 from rqc_main import MainRQC
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, Response, redirect
 from definition import RAIN, ROOT_DIR
 from sklearn.externals import joblib
 import logging
@@ -12,6 +13,8 @@ from logging.handlers import RotatingFileHandler
 from datasource.fake_tahmo import FakeTahmo
 from view.view import PairwiseView
 from model.hurdle_regression import MixLinearModel
+import pygal
+
 app = Flask(__name__)
 
 #parameters
@@ -21,7 +24,13 @@ MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
 @app.route('/<station>')
 @app.route('/')
 def rqc(station=None):
-    return render_template('main.html', station=station) #'<h2> This is an  RQC server</h2>'
+    global  data_source
+    data_source = FakeTahmo()
+    all_station = data_source.stations()
+    active_station = data_source.active_stations(all_station)
+    statation_status = [{"active":True if stn in active_station else False, "site_code":stn} for stn in all_station]
+
+    return render_template('main.html', all_stations=statation_status, save=True) #'<h2> This is an  RQC server</h2>'
 
 @app.route('/train/<station>')
 def train(station):
@@ -37,14 +46,14 @@ def train(station):
     save = request.args.get('save')
     if weather_variable is None:
         weather_variable = RAIN
-    rqc = MainRQC(target_station=station, variable=weather_variable, data_source=FakeTahmo())
+    rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source)
     rqc.add_view(name="PairwiseView", view=PairwiseView())
     rqc.add_module(name="MixLinearModel", module=MixLinearModel())
     fitted = rqc.fit(start_date=start_date,
                     end_date=end_date)
 
-    if save:
-        model_name = os.path.join(MODEL_DIR, station+start_date+end_date+weather_variable+"v00.pk")
+    if save is not None:
+        model_name = os.path.join(MODEL_DIR, station+weather_variable+"v00.pk")
         joblib.dump(fitted.save(), open(model_name,'w'))
     return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save)
 
@@ -63,114 +72,68 @@ def score(station_target):
     try:
 
         start_date = "2016-01-01"
-        end_date = "2016-06-30"
-        model_name = os.path.join(MODEL_DIR, station_target + start_date + end_date + RAIN + "v00.pk")
+        end_date = "2016-09-30"
+        model_name = os.path.join(MODEL_DIR, station_target + RAIN + "v00.pk")
         rqc_pk = joblib.load(open(model_name,'r'))
         rqc = MainRQC.load(rqc_pk)
         result = rqc.score(start_date, end_date)
-        return jsonify(result) #{'model_name':rqc.target_station, 'status':'success'})
+        # try plot.
+        scores = result['MixLinearModel'].reshape(-1).tolist()
+        date_range = pd.date_range(start_date, end_date, freq='1D')
+        return output_score(scores, date_range, station_target)
+
+        #return jsonify(result) #{'model_name':rqc.target_station, 'status':'success'})
     except Exception, e:
+         app.logger.error(str(e))
          return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+
+def output_score(scores, date_range, target_station):
+    line_map = [(dt.date(), sc) for dt, sc in zip(date_range, scores)]
+    graph = pygal.DateLine(x_label_rotation=35, stroke=False, human_readable=True)  # disable_xml_declaration=True)
+    graph.force_uri_protocol = 'http'
+    graph.title = '{}: Score.'.format(target_station)
+    graph.add(target_station, line_map)
+    graph_data = graph.render_data_uri()  # is_unicode=True)
+    return render_template('scores.html', title=target_station, bar_chart=graph_data)
+
 
 @app.route('/wipe', methods=['GET'])
 def wipe():
     try:
         shutil.rmtree(MODEL_DIR)
         os.makedirs(MODEL_DIR)
-        return 'Model wiped'
+        print('Models wiped')
+
+        return redirect('/')
 
     except Exception, e:
-        print str(e)
+        app.logger.error('An error occured {}'.format(str(e)))
         return 'Could not remove and recreate the model directory'
 
 
 
+## Testing
+
+@app.route('/pygal')
+def pygalexample():
+
+    try:
+        graph = pygal.Line(disable_xml_declaration=True)
+        graph.title = 'Change Coolness of programming languages over time.'
+        graph.x_labels = ['2011','2012','2013','2014','2015','2016']
+        graph.add('Python',  [15, 31, 89, 200, 356, 900])
+        graph.add('Java',    [15, 45, 76, 80,  91,  95])
+       # graph.add('C++',     [5,  51, 54, 102, 150, 201])
+        graph.add('All others combined!',  [5, 15, 21, 55, 92, 105])
+
+        graph_data = graph.render_data_uri() #.render(is_unicode=True)
+        return render_template('scores.html', title="pygalgraph", bar_chart=graph_data)
+
+    except Exception, e:
+        return(str(e))
 
 
 
-# # input
-# training_data = 'data/titanic.csv'
-# include = ['Age', 'Sex', 'Embarked', 'Survived']
-# dependent_variable = include[-1]
-#
-# model_directory = 'model'
-# model_file_name = '%s/model.pkl' % model_directory
-# model_columns_file_name = '%s/model_columns.pkl' % model_directory
-#
-# # These will be populated at training time
-# model_columns = None
-# clf = None
-# @app.route('/')
-# def foo():
-#     app.logger.warning('A warning occurred (%d apples)', 42)
-#     app.logger.error('An error occurred')
-#     app.logger.info('Info')
-#     return "foo"
-#
-# @app.route('/predict', methods=['POST'])
-# def predict():
-#     if clf:
-#         try:
-#             json_ = request.json
-#             query = pd.get_dummies(pd.DataFrame(json_))
-#
-#             # https://github.com/amirziai/sklearnflask/issues/3
-#             # Thanks to @lorenzori
-#             query = query.reindex(columns=model_columns, fill_value=0)
-#
-#             prediction = list(clf.predict(query))
-#
-#             return jsonify({'prediction': prediction})
-#
-#         except Exception, e:
-#
-#             return jsonify({'error': str(e), 'trace': traceback.format_exc()})
-#     else:
-#         print 'train first'
-#         return 'no model here'
-#
-#
-# @app.route('/train', methods=['GET'])
-# def train():
-#     # using random forest as an example
-#     # can do the training separately and just update the pickles
-#     from sklearn.ensemble import RandomForestClassifier as rf
-#
-#     df = pd.read_csv(training_data)
-#     df_ = df[include]
-#
-#     categoricals = []  # going to one-hot encode categorical variables
-#
-#     for col, col_type in df_.dtypes.iteritems():
-#         if col_type == 'O':
-#             categoricals.append(col)
-#         else:
-#             df_[col].fillna(0, inplace=True)  # fill NA's with 0 for ints/floats, too generic
-#
-#     # get_dummies effectively creates one-hot encoded variables
-#     df_ohe = pd.get_dummies(df_, columns=categoricals, dummy_na=True)
-#
-#     x = df_ohe[df_ohe.columns.difference([dependent_variable])]
-#     y = df_ohe[dependent_variable]
-#
-#     # capture a list of columns that will be used for prediction
-#     global model_columns
-#     model_columns = list(x.columns)
-#     joblib.dump(model_columns, model_columns_file_name)
-#
-#     global clf
-#     clf = rf()
-#     start = time.time()
-#     clf.fit(x, y)
-#     print 'Trained in %.1f seconds' % (time.time() - start)
-#     print 'Model training score: %s' % clf.score(x, y)
-#
-#     joblib.dump(clf, model_file_name)
-#
-#     return 'Success'
-#
-#
-#
 if __name__ == '__main__':
     handler = RotatingFileHandler('foo.log', maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
