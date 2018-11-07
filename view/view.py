@@ -34,11 +34,14 @@ class View(object):
 
     def make_view(self, target_station, k_stations):
         return NotImplementedError
+
     def to_json(self):
         return NotImplementedError
+
     @classmethod
     def from_json(cls, json_file):
         return NotImplementedError
+
 
 class ViewDefinition:
     """
@@ -51,6 +54,7 @@ class ViewDefinition:
         if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
             self.x = x
             self.y = y
+
 
 class ViewFactory:
     @staticmethod

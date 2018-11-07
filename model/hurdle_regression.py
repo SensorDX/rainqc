@@ -1,6 +1,5 @@
 from sklearn.neighbors import KernelDensity
 from sklearn.linear_model import LinearRegression, LogisticRegression
-import json
 import pickle
 import os
 import matplotlib.pylab as plt
@@ -8,7 +7,6 @@ from sklearn.externals import joblib
 import numpy as np
 from sklearn.model_selection import GridSearchCV
 import seaborn as sbn
-import common.utils as utils
 import logging
 
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
@@ -35,10 +33,13 @@ def grid_fit_kde(residual):
 class Module(object):
     def __init__(self):
         self.name = "Regression_module"
+
     def fit(self, x, y, verbose=False, load=False):
         return NotImplementedError
+
     def predict(self, x, y, label=None):
         return NotImplementedError
+
 
 class MixLinearModel(Module):
     """
@@ -59,20 +60,23 @@ class MixLinearModel(Module):
         self.fitted = False
         self.residual = False
 
-
-    def residual_plot(self, observed, true_value, fitted):
+    @staticmethod
+    def residual_plot(observed, true_value, fitted):
         plt.scatter(true_value, np.log(observed))
         plt.plot(true_value, fitted, '-r')
         plt.xlabel('Log (predictor + eps)')
         plt.ylabel('Log (response + eps)')
         plt.show()
-    def residual_density_plot(self, residual):
+
+    @staticmethod
+    def residual_density_plot(residual):
         plt.subplot(211)
         sbn.distplot(residual,hist=True )
         plt.subplot(212)
         sbn.kdeplot(residual)
-        #plt.show()
-    def grid_fit_kde(self, residual):
+
+    @staticmethod
+    def grid_fit_kde(residual):
         from sklearn.model_selection import GridSearchCV
         grid = GridSearchCV(KernelDensity(), {'bandwidth':np.linspace(0.1,1.0,20)}, cv=20)
         grid.fit(residual)
@@ -104,13 +108,13 @@ class MixLinearModel(Module):
         self.linear_reg.fit(X=l_x, y=l_y, sample_weight=sample_weight)
         self.fitted = self.linear_reg.predict(l_x)
         self.residual = (self.fitted - l_y)
-        # Grid fit for bandwidith.
+
+        # Grid fit for bandwidth.
         if load is False:
 
             param = grid_fit_kde(self.residual)
             self.kde = KernelDensity(bandwidth=param["bandwidth"])
             self.kde.fit(self.residual)
-
 
         else:
             self.kde = pickle.load(open("all_kde.kd","rb"))
@@ -157,7 +161,6 @@ class MixLinearModel(Module):
         non_zero_rain = np.divide(np.multiply(p, residual_density),
                                          (observations + self.eps))
         result = zero_rain + non_zero_rain
-        #np.savetxt("debug.txt",np.hstack([observations,zero_rain,residual,residual_density, non_zero_rain, result]),delimiter=',')
         return -np.log(result + np.max(result))
 
     def to_json(self, model_id="001", model_path="rainqc_model"):

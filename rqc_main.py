@@ -6,7 +6,6 @@ from dateutil import parser
 from pytz import utc
 from datasource.abcdatasource import DataSource
 from datasource.fake_tahmo import FakeTahmo
-
 from common.utils import is_valid_date
 
 
@@ -41,6 +40,7 @@ class MainRQC(object):
         self._parameters = OrderedDict()
         self._views = {}  # OrderedDict()
         self.k_stations = None
+        self.fitted = False
 
     def add_module(self, name, module):
         if not isinstance(module, Module) and module is not None:
@@ -153,11 +153,11 @@ class MainRQC(object):
         assert len(self._views) > 0
         assert len(self._modules) > 0
 
-        target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=None)
+        target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations)
 
         vw_name, vw = self.make_view(target_station_data, k_station_data)
+        self.k_stations = k_station_data.keys() # Assign k_station used.
 
-        print (vw.x.shape, vw.y.shape)
         if len(self._modules) > 1:
             for name, module in self._modules:
                 self.module_registry[name] = module.fit(vw.x, vw.y)
@@ -165,8 +165,12 @@ class MainRQC(object):
 
             name, module = self._modules.keys()[0], self._modules.values()[0]
             self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
-
+        self.fitted = True
         return self
+
+    def _check_if_fitted(self):
+        if not self.fitted:
+            raise ValueError("Model need to be fitted first.")
 
     def score(self, start_date, end_date, target_station=None):
         """
@@ -176,16 +180,14 @@ class MainRQC(object):
         4. Predict using the trained model at self.modules_registry
 
         Args:
-            model_registry:
-            target_station:
-            start_date:
-            end_date:
-            **kwargs:
+            start_date (str):
+            end_date (str):
+            target_station (str):
 
         Returns:
 
         """
-
+        self._check_if_fitted()
         is_valid_date(start_date, end_date)
         if target_station is None:
             target_station = self.target_station
@@ -208,7 +210,7 @@ class MainRQC(object):
 
             name, module = self.module_registry.keys()[0], self.module_registry.values()[0]
             result = module.predict(x=vw.x, y=vw.y)
-            return {name: result}
+            return {name: result[:].tolist()}
 
     def save(self, serialize=False):
         """
@@ -227,6 +229,7 @@ class MainRQC(object):
         """
         # Assume the model is single for now.
         # May be use globals()[className)(constructor) for creating class from string.
+        self._check_if_fitted()
         rqc_config = {"models":{}, "views":{}}
         self.set_parameters()
         for model_name, model in self.module_registry.items():
@@ -249,13 +252,13 @@ class MainRQC(object):
         Returns: RQC model.
 
         """
-        if rqc_config is None:
+        if (rqc_config is None) or (len(rqc_config)<1):
             raise ValueError("The model dict is empty/None. {}".format(rqc_config))
 
         # make sure all available models are saved.
         # make sure it is valid json format and have all model.
-        rqc = MainRQC()
 
+        rqc = MainRQC()
         for param, value in rqc_config["parameters"].items():
             if param in rqc.__dict__:
                 setattr(rqc, param, value)
@@ -268,7 +271,7 @@ class MainRQC(object):
             rqc.module_registry[model_name] = ModelFactory.get_model(model_name).from_json(model_config)
         for view_name, view_config in rqc_config["views"].items():
             rqc._views[view_name] = ViewFactory.get_view(view_name)
-
+        rqc.fitted = True
         return rqc
 
 #TODO: Error handling with the model parameters.

@@ -638,11 +638,16 @@ def cdf_plot(target_station, k=5):
     plt.xlabel("Days")
     plt.title(target_station +'-2016')
     plt.subplot(1,2,2)
-    plt.plot(test_data[target_station].cumsum(), '--r', label=target_station)
+    t_cumsum = test_data[target_station].cumsum()
+    dist = {}
+    plt.plot(t_cumsum, '--r', label=target_station)
     for stn in k_station:
-        plt.plot(test_data[stn].cumsum(), label=stn)
+        k_cumsum = test_data[stn].cumsum().as_matrix()
+        dist[stn] = np.sum(np.log(abs(t_cumsum - k_cumsum)))
+        plt.plot(k_cumsum, label=stn+" :"+str(dist[stn]))
+
     plt.legend(loc='best')
-    plt.xlabel("Days")
+    plt.xlabel("Days ")
     plt.title(target_station+'-2017')
 
 
@@ -736,7 +741,7 @@ if __name__ == '__main__':
         #         #break
     elif mode == "cdf":
          # Plot cdf of target station. compared to their nearby stations.
-        with PdfPages("detectionplot/"+source+str(K)+"_cdf2_plot.pdf") as pdf:
+        with PdfPages("detectionplot/"+source+str(K)+"_cdf_plot_dist.pdf") as pdf:
 
              for target_station in all_stations[:]:
                  print target_station

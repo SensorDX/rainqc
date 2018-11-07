@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Training operation</title>
+</head>
+<body>
+
+ <h1>Training operation for station
+ {{ target_station }} </h1>
+
+The following nearby stations are used to fit the model.
+    <ul id="navigation">
+    {% for station in stationlist %}
+        <li><a href="{{ station }}?save={{ save }}">{{ station }}</a><strong>*</strong></li>
+    {% endfor %}
+    </ul>
+ <strong>*</strong>click to train individual station.
+
+
+</body>
+</html>
