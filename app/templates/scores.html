@@ -1,0 +1,16 @@
+<html>
+    <head>
+        <title>{{ title }}</title>
+    <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/svg.jquery.js"></script>
+    <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/pygal-tooltips.js"></script>
+    </head>
+    <body>
+     <!--<div class="container" align="left" style='max-width:1000px'>-->
+			<!--{{ bar_chart|safe }}-->
+         <!--&lt;!&ndash;<embed type="image/svg+xml" src={{bar_chart|safe}} style='max-width:1000px'/>&ndash;&gt;&ndash;&gt;-->
+	  <!--</div>-->
+<figure>
+    <embed type="image/svg+xml" src="{{ line_chart|safe }}"></embed>
+</figure>
+    </body>
+</html>

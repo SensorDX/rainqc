@@ -1,12 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Training operation</title>
-</head>
+    <title>{{ target_station }}</title>
+    <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/svg.jquery.js"></script>
+    <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/pygal-tooltips.js"></script>
+    </head>
 <body>
 
  <h1>Training operation for station
  {{ target_station }} </h1>
+ <div>
+     Date from : <strong>{{ train_config['start_date'] }}</strong> to <strong> {{ train_config['end_date'] }}</strong> for
+     <strong>{{ train_config['weather_variable'] }}</strong>
+ </div>
 
 The following nearby stations are used to fit the model.
     <ul id="navigation">
@@ -14,8 +20,11 @@ The following nearby stations are used to fit the model.
         <li><a href="{{ station }}?save={{ save }}">{{ station }}</a><strong>*</strong></li>
     {% endfor %}
     </ul>
- <strong>*</strong>click to train individual station.
-
-
+<div id="result">
+    Result display
+<figure>
+    <embed type="image/svg+xml" src="{{ line_chart|safe }}"></embed>
+</figure>
+</div>
 </body>
 </html>

@@ -42,7 +42,10 @@ class MainRQC(object):
         self.k_stations = None
         self.fitted = False
 
-    def add_module(self, name, module):
+    def add_module(self, name, module=None):
+        if module is None:
+            module = ModelFactory.get_model(name)
+
         if not isinstance(module, Module) and module is not None:
             raise TypeError("{} is not a Module subclass".format(
                 type(module)))
@@ -54,7 +57,9 @@ class MainRQC(object):
             raise KeyError("module name can't be empty string \"\"")
         self._modules[name] = module
 
-    def add_view(self, name, view):
+    def add_view(self, name, view=None):
+        if view is None:
+            view = ViewFactory.get_view(name)
         if not isinstance(view, View) and view is not None:
             raise TypeError("{} is not a view class".format(type(view)))
         elif hasattr(self, name) and name not in self._views:
