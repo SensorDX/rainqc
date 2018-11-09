@@ -15,3 +15,12 @@
     {% endif %}
    {% endfor %}
  </ul>
+
+<select class="form-control" id="rating" name="active-station">
+        {% for station in all_stations %}
+     {% if station['active']==True %}
+         <option value="{{ station['site_code'] }}">{{ station['site_code'] }}</option>
+      {% endif %}
+   {% endfor %}
+
+</select>

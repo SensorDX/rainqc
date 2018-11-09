@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
 
-from datasource.local_source import  LocalDataSource
-from model.hurdle_regression import MixLinearModel
-from view.feature_extractor import PairwiseView
+from app.model.datasource import  LocalDataSource
+from app.model.model.hurdle_regression import MixLinearModel
+from app.model.view.feature_extractor import PairwiseView
 
 """
 Main workflow:

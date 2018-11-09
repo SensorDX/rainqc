@@ -1,5 +1,3 @@
-from .datasource import *
-from .model import *
-from .common import *
-from .view import *
+import os
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 

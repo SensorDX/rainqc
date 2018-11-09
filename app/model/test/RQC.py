@@ -1,7 +1,7 @@
 from collections import defaultdict
 
-from model.models import ModelFactory
-from view.view import ViewFactory, pairwise_view, multipair_view
+from app.model.model.models import ModelFactory
+from app.model.view.view import ViewFactory, multipair_view
 
 
 def evaluate(model_list, sample_data):
@@ -174,8 +174,7 @@ class RQC(object):
 
 
 if __name__ == '__main__':
-    from datasource.toy_datasource import ToyDataSource
-    from datasource.local_source import LocalDataSource
+    from app.model.datasource import LocalDataSource
 
     rqc = RQC()
     rqc.data_source = LocalDataSource(dir_path='./localdatasource')  # ToyDataSource

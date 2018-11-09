@@ -1,5 +1,5 @@
 from unittest import TestCase
-from view.view import PairwiseView, View
+from app.model.view.view import PairwiseView
 import numpy as np
 class TestPairwiseView(TestCase):
 
@@ -27,6 +27,6 @@ class TestPairwiseView(TestCase):
                                    [self.stations[:, (i+1):(i+2):]]).x
             self.assertEqual(vw.shape[0], self.n )
 
-        # Name
+
 
 

@@ -1,8 +1,8 @@
 from unittest import TestCase
 
 from RQC import RQC
-from datasource.toy_datasource import ToyDataSource
-from view.view import ViewDefinition
+from app.model.datasource import ToyDataSource
+from app.model.view.view import ViewDefinition
 
 
 class TestRQC(TestCase):

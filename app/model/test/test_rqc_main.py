@@ -1,11 +1,10 @@
-from rqc_main import MainRQC
-from datasource.fake_tahmo import FakeTahmo
-from datasource.tahmo_datasource import TahmoDataSource
-from sklearn.externals import joblib
-import datetime
+from app.model.rqc import MainRQC
+from app.model.datasource import FakeTahmo
+from app.model.datasource import TahmoDataSource
+
 if __name__ == "__main__":
-    from view.view import PairwiseView
-    from model.hurdle_regression import MixLinearModel
+    from app.model.view.view import PairwiseView
+    from app.model.model.hurdle_regression import MixLinearModel
     fd = globals()['FakeTahmo']()
     print(fd)
     x = 2

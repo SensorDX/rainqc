@@ -1,6 +1,7 @@
 import unittest
-from test.test_pairwiseView import TestPairwiseView
-from test.test_RQC import TestRQC
+from app.model.test import TestPairwiseView
+
+
 def suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.TestLoader().loadTestsFromTestCase(TestPairwiseView))

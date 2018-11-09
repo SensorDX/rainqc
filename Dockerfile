@@ -1,4 +1,4 @@
-FROM python:alpine3.7
+FROM python:2.7
 COPY . /rainqc
 WORKDIR /rainqc
 RUN pip install -r requirements.txt
