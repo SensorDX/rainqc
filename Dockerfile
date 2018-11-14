@@ -1,6 +1,7 @@
 FROM python:2.7
-COPY . /rainqc
-WORKDIR /rainqc
+COPY . /app
+WORKDIR /app
 RUN pip install -r requirements.txt
-EXPOSE 8000
-CMD python ./rqc_main.py
+EXPOSE 5000
+ENTRYPOINT ["python"]
+CMD ["app.py"]

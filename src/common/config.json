@@ -1,0 +1,20 @@
+{
+  "tahmo":{
+    "header": {
+            "authorization": "Basic NldZSFlUMFhWWTdCWFpIWE43SEJLWUFaODpSazdwWnBkSjBnd3hIVkdyM2twYnBIWDZwOGZrMitwSmhoS0F4Mk5yNzdJ",
+            "cache-control": "no-cache"
+        },
+
+        "timeseries":"https://tahmoapi.mybluemix.net/v1/timeseries/%s/rawMeasurements",
+        "station_url" :"https://tahmoapi.mybluemix.net/v1/stations",
+        "cm_url" :"https://tahmoapi.mybluemix.net/v1/timeseries/%s%",
+        "nearby_station":"station_nearby.json"
+
+  },
+  "mongodb":{
+    "production":"mongodb://tahmo:wQ)9wR2jX9d_#Y.M{y@ds155903.mlab.com:55903/rainqc",
+    "dev":"mongodb://localhost:27017/rainqc"
+  },
+  "local":{}
+
+}

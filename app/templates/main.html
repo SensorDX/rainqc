@@ -1,26 +1,59 @@
 <!doctype html>
+<html>
 <title>Station management</title>
-<!--{% if station %}-->
-  <!--<h1>Starting training and scoring for {{ station }}!</h1>-->
-<!--{% else %}-->
-  <!--<h1>Station is required later {{ station }}</h1>-->
-<!--{% endif %}-->
+<style>
+body {
+  margin: 40px;
+}
+
+.wrapper {
+  display: grid;
+  grid-template-columns: 400px 200px 300px;
+  grid-gap: 10px;
+  background-color: #fff;
+  color: #444;
+}
+
+.box {
+  background-color: #ffffff;
+  color: #220322;
+  border-radius: 5px;
+  padding: 20px;
+  font-size: 150%;
+}
+
+</style>
+<body>
+<div class="wrapper">
+  <div class="box a">A
 <h1> List of available stations. </h1>
  <ul id="navigation">
     {% for station in all_stations %}
-     {% if station['active']==True %}
-          <li><a href="train/{{ station['site_code'] }}?save={{ save }}">{{ station['site_code'] }}</a></li>
+     {% if station['site_code']['active']==True %}
+          <li><a href="train/{{ station['site_code']['id'] }}?save={{ save }}">{{ station['site_code']['id'] }}</a></li>
       {% else %}
-          <li><span style="color:red">{{ station['site_code'] }} </span></li>
+          <li><span style="color:red">{{ station['site_code']['id']  }} </span></li>
     {% endif %}
    {% endfor %}
  </ul>
 
-<select class="form-control" id="rating" name="active-station">
+  </div>
+
+    <div class="box b">
+        List of active stations
+      <select class="form-control" id="rating" name="active-station">
         {% for station in all_stations %}
-     {% if station['active']==True %}
-         <option value="{{ station['site_code'] }}">{{ station['site_code'] }}</option>
+     {% if station['site_code']['active'] %}
+         <option value="{{ station['site_code']['id'] }}">{{ station['site_code']['id'] }}</option>
       {% endif %}
    {% endfor %}
 
-</select>
+    </select>
+  </div>
+
+</div>
+
+
+</body>
+
+</html>

@@ -1,14 +1,14 @@
-from app.model.model.hurdle_regression import MixLinearModel
+from src.model import MixLinearModel
 import pandas as pd
-from app.common import roc_metric, precision_recall ,ap
+from src.common import roc_metric, precision_recall ,ap
 import matplotlib.pylab as plt
 import numpy as np
 from sklearn.linear_model import Ridge, LogisticRegression
-from app.common import merge_two_dicts
+from src.common import merge_two_dicts
 from matplotlib.backends.backend_pdf import PdfPages
 import logging
 from collections import defaultdict
-from app import common as util
+from src import common as util
 
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
 
@@ -328,7 +328,7 @@ def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_a
     k_station = nearby_stations(target_station, k=num_k, path=nearest_location_path)
     k_station = np.intersect1d(k_station, train_data.columns)
     y, x = train_data[target_station].as_matrix().reshape(-1, 1), train_data[k_station].as_matrix()
-    # single joint model.
+    # single joint src.
 
     load_residual = None # np.hstack([np.loadtxt("residual/" + ff) for ff in os.listdir("residual/")]).reshape(-1,1)
     #Ridge(alpha=ridge_alpha)
@@ -341,7 +341,7 @@ def train(train_data, target_station="TA00020", num_k=5, pairwise=False, ridge_a
 
         return model.fit(x=x, y=y,load=False), k_station
     else:
-        # Build pairwise regression model.
+        # Build pairwise regression src.
         models = {}
         for stn in k_station:
             x_p = train_data[stn].as_matrix().reshape(-1, 1)
@@ -535,7 +535,7 @@ def main():
     print "AUC of individual stations "
     print roc_test
 
-    ## Combined model
+    ## Combined src
     result = combine_models(models, test_data, y_t)
     print roc_metric(result, t_lbl)
 
