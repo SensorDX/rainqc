@@ -33,7 +33,7 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
 
 class TahmoDataSource(DataSource):
 
-    def __init__(self, nearby_station_location="nearest_station.csv"):
+    def __init__(self, nearby_station_location="nearest_station.csv", keepdim=True):
         super(TahmoDataSource, self).__init__()
         # Later will move to config.
         config_path = os.path.join(ROOT_DIR,'config/config.json')
@@ -46,11 +46,13 @@ class TahmoDataSource(DataSource):
         self.cm_url = tahmo_connection["cm_url"]
         self.nearby_station_file = os.path.join(ROOT_DIR,"config/"+tahmo_connection["nearby_station"])
         self.station_url = tahmo_connection["station_url"]
+        self.keepdim  = keepdim
         if not os.path.exists(self.nearby_station_file):
             self.compute_nearest_stations()
     def stations(self):
         all_stations = self.get_stations()["stations"]
-        return [stn for stn in all_stations]
+        return all_stations
+        #return [stn for stn in all_stations]
 
     def __get_request(self, url, params={}):
         try:
@@ -69,6 +71,8 @@ class TahmoDataSource(DataSource):
     def get_data(self, station_name, start_date, end_date, data_format="json"):
         querystring = {"startDate": start_date, "endDate": end_date}
         url = self.timeseries_url % station_name
+        #url = self.cm_url % station_name
+        #print url
         json_data = self.__get_request(url, querystring).json()
         if json_data['status'] == 'error':
             raise ValueError("Request has error %s" % json_data['error'])
@@ -81,6 +85,24 @@ class TahmoDataSource(DataSource):
     def get_stations(self):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
+
+    def online_station(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
+
+        all_stations = self.stations()
+        current_active_stations = []
+
+        for stn in all_stations:
+            if not stn["active"]:
+                continue
+            if stn.get('lastMeasurement') is None:
+                continue
+
+            last_measure = parser.parse(stn.get('lastMeasurement'))  # Need to change to utc.
+            wait_time = divmod((active_day_range - last_measure).total_seconds(), 3600)
+            if wait_time[0] < threshold:
+                current_active_stations.append(stn)
+                continue
+        return current_active_stations
 
     def active_stations(self, station_list, active_day_range=datetime.now(tz.tzutc()), threshold=24):
         """
@@ -97,22 +119,37 @@ class TahmoDataSource(DataSource):
         if len(station_list) < 1:
             raise ValueError("The station list is empty")
         all_stations = self.get_stations()["stations"]
-        active_stations = []
+        current_active_stations = []
 
         for station in station_list:
             for stn_db in all_stations:
                 if stn_db["id"] == station:
                     if not stn_db["active"]:
                         continue
-                    last_measure = parser.parse(stn_db["lastMeasurement"])  # Need to change to utc.
-
-                    wait_time = divmod((active_day_range - last_measure).total_seconds(), 3600)
-                    if wait_time[0] < threshold:
-                        active_stations.append(station)
+                    last_measurement = stn_db.get("lastMeasurement")
+                    if last_measurement is None:
                         continue
-        return active_stations
+                    last_measurement = parser.parse(last_measurement)  # Need to change to utc.
+
+                    wait_time = divmod((active_day_range - last_measurement).total_seconds(), 3600)
+                    if wait_time[0] < threshold:
+                        current_active_stations.append(station)
+                        continue
+        return current_active_stations
 
     def daily_data(self, station_name, weather_variable, start_date, end_date):
+        """
+
+        Args:
+            station_name (str) : station name to query
+            weather_variable (str): Weather variable name. This should match to the variable name in the database.
+            start_date (str): start date in string format, yyyy-mm-dd
+            end_date (str): end range date.
+
+        Returns (nd.array): numpy array of observations. If keepdim is true it returns as Nx1 else (N,) shape.
+                            Default keepdim is true
+
+        """
         json_data = self.get_data(station_name, start_date, end_date)
         if len(json_data["timeseries"]) < 1:
             return None
@@ -120,7 +157,12 @@ class TahmoDataSource(DataSource):
             return None
         else:
             df = json_to_df(json_data, weather_variable=weather_variable, group='D')
-            return df
+
+        df = df[weather_variable]
+        if self.keepdim:
+            return df.values.reshape(-1,1)
+        else:
+            return df.values
 
     def load_nearby_stations(self, target_station, radius=None, k=None):
         load_station_distance = json.load(open(self.nearby_station_file, "r"))
@@ -160,3 +202,9 @@ class TahmoDataSource(DataSource):
                 metadata[stn["id"]].append({"site_to": n_stn["id"], "distance": dist, "elevation": n_stn["elevation"]})
         json.dump(metadata, open(os.path.join(ROOT_DIR, "config/station_nearby.json"), "w"))
 
+
+if __name__ == '__main__':
+    ff = TahmoDataSource()
+    #print ff.stations()
+    print ff.online_station()
+    #print ff.active_stations(['TA00031'])

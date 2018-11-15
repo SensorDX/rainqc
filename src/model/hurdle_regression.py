@@ -1,3 +1,4 @@
+from sklearn.exceptions import NotFittedError
 from sklearn.neighbors import KernelDensity
 from sklearn.linear_model import LinearRegression, LogisticRegression
 import pickle
@@ -109,6 +110,7 @@ class MixLinearModel(Module):
 
         else:
             self.kde = pickle.load(open("all_kde.kd","rb"))
+        self.fitted = True
         #logger.debug("KDE bandwidth %s"%self.kde.bandwidth)
         return self
 
@@ -122,7 +124,9 @@ class MixLinearModel(Module):
 
         Returns:
         """
-
+        if self.fitted is False:
+            raise NotFittedError("Call fit before prediction")
+        
         log_pred = self.log_reg.predict_proba(x)[:, 1]
         linear_pred = self.linear_reg.predict(np.log(x + self.eps))
         return self.mixl(y, log_pred, linear_pred)

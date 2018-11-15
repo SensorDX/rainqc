@@ -14,17 +14,18 @@ from bson.binary import Binary
 from flask_pymongo import PyMongo,ObjectId
 from definition import ROOT_DIR
 import json
-app = Flask(__name__)
 
+
+app = Flask(__name__)
 mode = "production" #"dev" #" #could "dev" or "production"
 # Db configuration
 db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"),"r"))["mongodb"]
 app.config["MONGO_URI"] = db_config[mode]  #could be
+MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
+
 mongo = PyMongo(app)
 
-# parameters, # radius, num_station, weather_variable
-MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
-data_source = TahmoDataSource() #FakeTahmo()  # datasource connection object.
+# Parameters
 RADIUS = 100
 MAX_K = 5
 WEATHER_VARIABLE = RAIN
@@ -32,6 +33,8 @@ VIEWS = ['PairwiseView']
 MODELS = ['MixLinearModel']
 VERSION = 0.1
 
+#global variable.
+data_source = TahmoDataSource() #FakeTahmo()  # datasource connection object.
 
 @app.route('/<station>')
 @app.route('/')
@@ -45,10 +48,11 @@ def main(station=None):
 
     return render_template('main.html', all_stations=station_status, save=True)
 
+
 @app.route('/trained')
 def trained_model():
     """
-    Display returned stations.
+    Display trained stations.
     Returns:
 
     """
@@ -65,6 +69,12 @@ def trained_model():
 
 @app.route('/fitted')
 def fitted_detail():
+    """
+    Display fitted parameter for the trained model.
+    Returns:
+
+    """
+
     _id = request.args.get('_id')
     app.logger.info(_id)
     query = {'_id': ObjectId(_id)}
@@ -87,6 +97,17 @@ def fitted_detail():
 
 @app.route('/train/<station>')
 def train(station):
+    """
+    This train a single station using arguments
+    Args:
+        station (str): station name
+        start_date (str): start_date
+        end_date (str): end_date
+        save (bool): if true saves the trained model.
+
+    Returns:
+
+    """
     # target_station = request.args.get('station')
     start_date = request.args.get('startDate')
     end_date = request.args.get('endDate')
@@ -96,9 +117,8 @@ def train(station):
 
     # target_station_q = "TA00030"
     if (start_date is None) or (end_date is None):
-        start_date = "2016-01-01"  # (datetime.datetime.now(timezone('utc'))-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M')
-        end_date = "2016-12-31"  # (datetime.datetime.now(timezone('utc')) - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M')
-
+        start_date = "2016-01-01"
+        end_date = "2016-12-31"
     if weather_variable is None:
         weather_variable = RAIN
     rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source,
@@ -137,6 +157,23 @@ def train(station):
     return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
                            train_config=train_parameters)
 
+@app.route('/trainall')
+def train_all():
+    """
+    Train all stations
+    Returns:
+
+    """
+    sstart_date = request.args.get('startDate')
+    end_date = request.args.get('endDate')
+    weather_variable = request.args.get('variable')
+
+
+    threshold_waiting_hour = 72
+    all_stations = data_source.online_station(threshold=threshold_waiting_hour, active_day_range=end_date)
+    for station in all_stations:
+        # train each station seperately
+        train(station)
 
 @app.route('/score/<target_station>')
 def score(target_station):

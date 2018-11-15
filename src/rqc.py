@@ -97,7 +97,7 @@ class MainRQC(object):
         active_date = utc.localize(parser.parse(end_date))
         active_station = self.data_source.active_stations(k_stations, active_day_range=active_date)
         if len(active_station) < 1:
-            return ValueError("There is no active station to query data")
+            raise ValueError("There is no active station to query data")
 
         k = self.num_k_stations  # Filter k station if #(active stations) > k
         for stn in active_station:
@@ -109,8 +109,8 @@ class MainRQC(object):
             k_stations_data[stn] = current_data
             k -= 1
         if len(k_stations_data.keys()) < 1:
-            print("All of the active station don't have data starting date {} to {}.".format(start_date, end_date))
-            return
+            raise ValueError("All of the active station {} don't have data starting date {} to {}.".format(active_station, start_date, end_date))
+            #return
         else:
             print ("There are {} available stations to use".format(k_stations_data.keys()))
         return target_station_data, k_stations_data
@@ -180,7 +180,7 @@ class MainRQC(object):
     def score(self, start_date, end_date, target_station=None):
         """
         1. Fetch data from source.
-        2. Load nearby station, from saved src.
+        2. Load nearby station, from saved source.
         3. Create view using the nearby stations.
         4. Predict using the trained src at self.modules_registry
 
