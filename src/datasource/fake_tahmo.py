@@ -9,7 +9,7 @@ class FakeTahmo(DataSource):
     def get_data(self, station_name, start_date, end_date, data_format="json"):
         pass
 
-    def __init__(self, local_data_source="experiments/dataset/tahmostation2016.csv",
+    def __init__(self, local_data_source="localdatasource/dataset/tahmostation2016.csv",
                  nearby_station="localdatasource/nearest_stations.csv"):
         super(FakeTahmo, self).__init__()
         self.local_data_source = os.path.join(ROOT_DIR, local_data_source)
@@ -22,7 +22,7 @@ class FakeTahmo(DataSource):
 
     def stations(self):
         stations = self.data.columns.tolist()
-        return stations
+        return [{'online':True, 'id': stn, 'active':True} for stn in stations]
 
     def daily_data(self, target_station, target_variable, start_date, end_date):
         ###
@@ -42,6 +42,9 @@ class FakeTahmo(DataSource):
 
     def active_stations(self, station_list, active_day_range="2016-01-01"):
         return station_list
+
+    def online_station(self, threshold=72):
+        return self.data.columns.tolist()
 
     def to_json(self):
         json_config = {"local_data_source": self.local_data_source, "nearby_station_file": self.nearby_station_file}

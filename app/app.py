@@ -17,7 +17,7 @@ import json
 
 
 app = Flask(__name__)
-mode = "production" #"dev" #" #could "dev" or "production"
+mode = "dev" #"dev" #" #could "dev" or "production"
 # Db configuration
 db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"),"r"))["mongodb"]
 app.config["MONGO_URI"] = db_config[mode]  #could be
@@ -34,25 +34,30 @@ MODELS = ['MixLinearModel']
 VERSION = 0.1
 
 #global variable.
-data_source = TahmoDataSource() #FakeTahmo()  # datasource connection object.
-
+data_source = TahmoDataSource() # FakeTahmo()  #  datasource connection object.
+WAIT_TIME_THRESHOLD = 72
 @app.route('/<station>')
 @app.route('/')
 def main(station=None):
     global data_source
-    # data_source = FakeTahmo()
-    all_station = data_source.stations()
-    active_station = data_source.active_stations(all_station)
-    station_status = [{"active": True if stn in active_station else False, "site_code": stn}
-                      for stn in all_station]
 
-    return render_template('main.html', all_stations=station_status, save=True)
+    all_stations = data_source.stations()
+    online_stations = data_source.online_station(threshold=WAIT_TIME_THRESHOLD)
+
+    for stn in all_stations:
+        if stn['id'] in online_stations:
+            stn['online'] = True
+        else:
+            stn['online'] = False
+
+    #print station_status
+    return render_template('main.html', all_stations=all_stations, save=True)
 
 
 @app.route('/trained')
 def trained_model():
     """
-    Display trained stations.
+    Retrieve trained models from the db and display it.
     Returns:
 
     """
@@ -74,26 +79,29 @@ def fitted_detail():
     Returns:
 
     """
+    try:
 
-    _id = request.args.get('_id')
-    app.logger.info(_id)
-    query = {'_id': ObjectId(_id)}
-    model_config = mongo.db.model.find_one(query)  # type: object
+        _id = request.args.get('_id')
+        app.logger.info(_id)
+        query = {'_id': ObjectId(_id)}
+        model_config = mongo.db.model.find_one(query)  # type: object
 
-    if model_config is None:
-        app.logger.error("Couldn't find the src {}", model_config)
-        raise ValueError("Couldn't find the src")
+        if model_config is None:
+            app.logger.error("Couldn't find the model {}", model_config)
+            raise ValueError("Couldn't find the model")
 
-    rqc_pk = pickle.loads(model_config['src'])  # joblib.load(open(model_name,'r'))
-    rqc = MainRQC.load(rqc_pk)
+        rqc_pk = pickle.loads(model_config['model'])  # joblib.load(open(model_name,'r'))
+        rqc = MainRQC.load(rqc_pk)
 
-    result = rqc.score(model_config['start_date'], model_config['end_date'])
-        # try plot.
-    date_range = pd.date_range(model_config['start_date'], model_config['end_date'], freq='1D')
-    scores = result['MixLinearModel'].reshape(-1).tolist()
-    graph_data = out_plot(scores, date_range, model_config['station'])
-    return render_template('scores.html', title=model_config['station'], line_chart=graph_data)
-
+        result = rqc.score(model_config['start_date'], model_config['end_date'])
+            # try plot.
+        date_range = pd.date_range(model_config['start_date'], model_config['end_date'], freq='1D')
+        scores = result['MixLinearModel'].reshape(-1).tolist()
+        graph_data = out_plot(scores, date_range, model_config['station'])
+        return render_template('scores.html', title=model_config['station'], line_chart=graph_data)
+    except Exception, e:
+        app.logger.error(str(e))
+        return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
 @app.route('/train/<station>')
 def train(station):
@@ -109,11 +117,11 @@ def train(station):
 
     """
     # target_station = request.args.get('station')
-    start_date = request.args.get('startDate')
-    end_date = request.args.get('endDate')
+    start_date = request.args.get('startDate',type=str)
+    end_date = request.args.get('endDate', type=str)
     weather_variable = request.args.get('variable')
-    evaluate = request.args.get('evaluate')
-    save = request.args.get('save')
+    evaluate = request.args.get('evaluate', type=bool)
+    save = request.args.get('save',type=bool)
 
     # target_station_q = "TA00030"
     if (start_date is None) or (end_date is None):
@@ -123,6 +131,7 @@ def train(station):
         weather_variable = RAIN
     rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source,
                   num_k_stations=MAX_K, radius=RADIUS)
+
     for view_name in VIEWS:
         rqc.add_view(name=view_name)
     for m_name in MODELS:
@@ -135,16 +144,16 @@ def train(station):
                         'weather_variable': weather_variable,
                         'radius': RADIUS, 'k': MAX_K, 'views': VIEWS, 'models': MODELS, 'station': station}
 
-    if save is not None:
+    if save:
         model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
         joblib.dump(fitted.save(), open(model_name, 'w'))
         pk_model = pickle.dumps(fitted.save())
-        train_parameters['src'] = Binary(pk_model)
+        train_parameters['model'] = Binary(pk_model)
         mongo.db.model.insert(train_parameters)
     if evaluate:
-        scores = _score(target_station=station, weather_variable=weather_variable,
-                        start_date=start_date, end_date=end_date)
-
+        # scores = _score(target_station=station, weather_variable=weather_variable,
+        #                 start_date=start_date, end_date=end_date)
+        scores = rqc.score(start_date, end_date, target_station=station)['MixLinearModel'].reshape(-1).tolist()
         date_range = pd.date_range(start_date, end_date, freq='1D')
         graph = out_plot(scores, date_range=date_range, target_station=station)
         # raw data.
@@ -164,7 +173,7 @@ def train_all():
     Returns:
 
     """
-    sstart_date = request.args.get('startDate')
+    start_date = request.args.get('startDate')
     end_date = request.args.get('endDate')
     weather_variable = request.args.get('variable')
 
@@ -173,78 +182,123 @@ def train_all():
     all_stations = data_source.online_station(threshold=threshold_waiting_hour, active_day_range=end_date)
     for station in all_stations:
         # train each station seperately
+        # Add waiting time and error handling for each station.
         train(station)
 
 @app.route('/score/<target_station>')
 def score(target_station):
     """
-    Score a station from a trained src.
+    Score a station from a trained model.
     Args:
         target_station:
         start
     Returns:
 
     """
-    start_date = "2016-01-01"  # request.args.get('start_date') # "2016-01-01"
-    end_date = "2016-09-30"  # request.args.get('end_date') #"2016-09-30"
-    weather_variable = RAIN  # request.args.get('variable') #RAIN
-    date_range = pd.date_range(start_date, end_date, freq='1D')
-    scores = _score(target_station, weather_variable, start_date, end_date)
-    graph_data = out_plot(scores, date_range, target_station)
-    return render_template('scores.html', title=target_station, line_chart=graph_data)
-
-
-def _score(target_station, weather_variable, start_date, end_date):
     try:
+        save = request.args.get('save', type=bool)
+        start_date = "2016-01-01"  # request.args.get('start_date') # "2016-01-01"
+        end_date = "2016-06-30"  # request.args.get('end_date') #"2016-09-30"
+        weather_variable = RAIN  # request.args.get('variable') #RAIN
+        date_range = pd.date_range(start_date, end_date, freq='1D')
 
-        model_name = os.path.join(MODEL_DIR, target_station + weather_variable + "v00.pk")
         query = {'station': target_station, 'weather_variable': weather_variable}
 
-        # mongo.db.src.find(query)
+        # query db
         model_config = mongo.db.model.find_one(query)
         if model_config is None:
-            return ValueError("Couldn't find the src")
+            raise ValueError("Couldn't find the model")
 
-        rqc_pk = pickle.loads(model_config['src'])  # joblib.load(open(model_name,'r'))
+        rqc_pk = pickle.loads(model_config['model'])  # joblib.load(open(model_name,'r'))
         rqc = MainRQC.load(rqc_pk)
         result = rqc.score(start_date, end_date)
         # try plot.
         scores = result['MixLinearModel'].reshape(-1).tolist()
-        return scores
+        message = "Scores not yet saved."
+        if DEBUG:
+            app.logger.error(scores)
+        if save:
+            score_result = {'model_id': model_config['_id'], 'station': target_station,
+                            'weather_variable': weather_variable,
+                            'scores': {str(date): score for date, score in zip(date_range, scores)}
+                            }
+            mongo.db.qc_score.insert(score_result)
+            message = "Scores saved"
 
-        # return jsonify(result) #{'model_name':rqc.target_station, 'status':'success'})
+        graph_data = out_plot(scores, date_range, target_station)
+        return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
     except Exception, e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
-
-@app.route('/evaluate/<station>')
-def evaluate_metric(station):
+def evaluate():
     """
-    Evaluate station from fitted data.
-    Args:
-        station:
-
+    Load trained model and evaluate on data with synthetic faults.
+    Given the ground truth evaluate the AUC/PR or accuracy or number of false alaram.
     Returns:
 
     """
-    start_date = request.args.get('startDate')
-    end_date = request.args.get('endDate')
-    weather_variable = request.args.get('variable')
+    pass
+def display_score():
+    """
+    Display anomlay score with their ground truth.
+    - Load the data and anomaly score and mark it with
+    Returns:
 
-    # Load trained src.
+    """
+    pass
 
-    scores = _score(target_station=station, weather_variable=weather_variable,
-                    start_date=start_date, end_date=end_date)
-    date_range = pd.date_range(start_date, end_date, freq='1D')
-    graph = out_plot(scores, date_range=date_range, target_station=station)
-    # raw data.
-    raw_data = data_source.daily_data(target_station=station, target_variable=RAIN,
-                                      start_date=start_date, end_date=end_date).reshape(-1)
-    raw_plt = out_plot(raw_data, date_range, target_station=station)
-
-    return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
-                           train_config=train_parameters, line_chart=raw_plt)
+# def _score(target_station, weather_variable, start_date, end_date):
+#     try:
+#
+#         #model_name = os.path.join(MODEL_DIR, target_station + weather_variable + "v00.pk")
+#         query = {'station': target_station, 'weather_variable': weather_variable}
+#
+#         # mongo.db.model.find(query)
+#         model_config = mongo.db.model.find_one(query)
+#         if model_config is None:
+#             return ValueError("Couldn't find the model")
+#
+#         rqc_pk = pickle.loads(model_config['model'])  # joblib.load(open(model_name,'r'))
+#         rqc = MainRQC.load(rqc_pk)
+#         result = rqc.score(start_date, end_date)
+#         # try plot.
+#         scores = result['MixLinearModel'].reshape(-1).tolist()
+#         return scores, model_config['_id']
+#
+#         # return jsonify(result) #{'model_name':rqc.target_station, 'status':'success'})
+#     except Exception, e:
+#         app.logger.error(str(e))
+#         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+#
+#
+# @app.route('/evaluate/<station>')
+# def evaluate_metric(station):
+#     """
+#     Evaluate station from fitted data.
+#     Args:
+#         station:
+#
+#     Returns:
+#
+#     """
+#     start_date = request.args.get('startDate')
+#     end_date = request.args.get('endDate')
+#     weather_variable = request.args.get('variable')
+#
+#     # Load trained model.
+#
+#     scores = _score(target_station=station, weather_variable=weather_variable,
+#                     start_date=start_date, end_date=end_date)
+#     date_range = pd.date_range(start_date, end_date, freq='1D')
+#     graph = out_plot(scores, date_range=date_range, target_station=station)
+#     # raw data.
+#     # raw_data = data_source.daily_data(target_station=station, target_variable=RAIN,
+#     #                                   start_date=start_date, end_date=end_date).reshape(-1)
+#     # raw_plt = out_plot(raw_data, date_range, target_station=station)
+#     #
+#     # return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
+#     #                        train_config=train_parameters, line_chart=raw_plt)
 
 
 @app.route('/wipe/<station>')
@@ -267,8 +321,10 @@ def wipe(station=None):
 
     except Exception, e:
         app.logger.error('An error occured {}'.format(str(e)))
-        return 'Could not remove and recreate the src directory'
+        return 'Could not remove and recreate the model directory'
 
+
+# Plot operations
 
 def out_plot(scores, date_range, target_station):
     line_map = [(dt.date(), sc) for dt, sc in zip(date_range, scores)]
@@ -285,13 +341,9 @@ if __name__ == '__main__':
     handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
     app.logger.addHandler(handler)
+    DEBUG = True
     if len(sys.argv)>1:
         port = int(sys.argv[1])
     else:
         port = 5000
-    app.run(host='0.0.0.0', port=port, debug=True)
-
-##TODO: Add unit test for all parts
-##TODO: Test with the actual Tahmo datasource
-##TODO: add batch processing operation.**
-##TODO: Add few view operations.
+    app.run(host='0.0.0.0', port=port, debug=DEBUG)

@@ -29,10 +29,10 @@ body {
 <h1> List of available stations. </h1>
  <ul id="navigation">
     {% for station in all_stations %}
-     {% if station['site_code']['active']==True %}
-          <li><a href="train/{{ station['site_code']['id'] }}?save={{ save }}">{{ station['site_code']['id'] }}</a></li>
+     {% if station['online']==True %}
+          <li><a href="train/{{ station['id'] }}?save={{ save }}">{{ station['id'] }}</a></li>
       {% else %}
-          <li><span style="color:red">{{ station['site_code']['id']  }} </span></li>
+          <li><span style="color:red">{{ station['id']  }} </span></li>
     {% endif %}
    {% endfor %}
  </ul>
@@ -41,14 +41,7 @@ body {
 
     <div class="box b">
         List of active stations
-      <select class="form-control" id="rating" name="active-station">
-        {% for station in all_stations %}
-     {% if station['site_code']['active'] %}
-         <option value="{{ station['site_code']['id'] }}">{{ station['site_code']['id'] }}</option>
-      {% endif %}
-   {% endfor %}
 
-    </select>
   </div>
 
 </div>

@@ -43,7 +43,7 @@ class MixLinearModel(Module):
     """
 
     def __init__(self, linear_reg=LinearRegression(), log_reg=LogisticRegression(),
-                 kde=KernelDensity(kernel="gaussian"), eps=0.0001):
+                 kde=KernelDensity(kernel="gaussian"), eps=0.0001, offset = -.05):
         super(MixLinearModel, self).__init__()
         self.linear_reg = linear_reg
         self.eps = eps 
@@ -51,6 +51,7 @@ class MixLinearModel(Module):
         self.kde = kde
         self.fitted = False
         self.residual = False
+        self.offset= offset
 
     @staticmethod
     def residual_plot(observed, true_value, fitted):
@@ -74,7 +75,7 @@ class MixLinearModel(Module):
         grid.fit(residual)
         return grid.best_params_
 
-    def fit(self, x, y, verbose=False, load=False):
+    def _fit(self, x, y, verbose=False, load=False):
         """
         Args:
             y: Nx1 ndarray observed value.
@@ -83,18 +84,16 @@ class MixLinearModel(Module):
         Returns:
 
         """
-        if verbose:
-            print (type(x), type(y), x.shape, y.shape)
 
-        if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
-            return NameError("The input should be given as ndarray")
 
         l_x, l_y = np.log(x + self.eps), np.log(y + self.eps)
         y_zero_one = (y > 0.0).astype(int)
-        sample_weight = None
-        if y_zero_one.max() != y_zero_one.min():
-            self.log_reg.fit(x, y_zero_one)
-            sample_weight = self.log_reg.predict_proba(x)[:, 1]
+
+        if y_zero_one.max() == y_zero_one.min():
+            raise NotFittedError("Logistic model couldn't fit, because the number of classes is <2")
+
+        self.log_reg.fit(x, y_zero_one)
+        sample_weight = self.log_reg.predict_proba(x)[:, 1]
 
         # Linear regression under log mode.
         self.linear_reg.fit(X=l_x, y=l_y, sample_weight=sample_weight)
@@ -130,6 +129,19 @@ class MixLinearModel(Module):
         log_pred = self.log_reg.predict_proba(x)[:, 1]
         linear_pred = self.linear_reg.predict(np.log(x + self.eps))
         return self.mixl(y, log_pred, linear_pred)
+    def decision_function(self, score):
+        """
+        Return decision based on the anomaly score.
+        Args:
+            x:
+            y:
+            label:
+
+        Returns:
+
+        """
+        return score - self.offset
+
 
     def mixl(self, y, logreg_prediction, linear_predictions):
 
@@ -158,8 +170,9 @@ class MixLinearModel(Module):
         result = zero_rain + non_zero_rain
         return -np.log(result + np.max(result))
 
-    def to_json(self, model_id="001", model_path="rainqc_model"):
-
+    def to_json(self):
+        if not self.fitted:
+            raise NotFittedError("Fit method should be called before save operation.")
         model_config = {
             "kde_model": self.kde,
             "logistic_model": self.log_reg,
@@ -172,6 +185,7 @@ class MixLinearModel(Module):
 
         mlm = MixLinearModel(linear_reg=model_config['linear_model'], log_reg=model_config['logistic_model'],
                              kde=model_config['kde_model'])
+        mlm.fitted = True
 
         return mlm
 
@@ -204,4 +218,5 @@ class MixLinearModel(Module):
         kde = joblib.load(os.path.join(loaded_model, "kde_model.pk"))
         log_reg = joblib.load(os.path.join(loaded_model, "logistic_model.pk"))  # pickle.load(model_config['zerone'])
         mxll = MixLinearModel(linear_reg=reg_model, log_reg=log_reg, kde=kde)
+        mxll.fitted = True
         return mxll

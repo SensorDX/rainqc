@@ -157,20 +157,23 @@ class MainRQC(object):
         common.is_valid_date(start_date, end_date)
         assert len(self._views) > 0
         assert len(self._modules) > 0
+        try:
 
-        target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations)
+            target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations)
 
-        vw_name, vw = self.make_view(target_station_data, k_station_data)
-        self.k_stations = k_station_data.keys() # Assign k_station used.
+            vw_name, vw = self.make_view(target_station_data, k_station_data)
+            self.k_stations = k_station_data.keys() # Assign k_station used.
 
-        if len(self._modules) > 1:
-            for name, module in self._modules:
-                self.module_registry[name] = module.fit(vw.x, vw.y)
-        else:
+            if len(self._modules) > 1:
+                for name, module in self._modules:
+                    self.module_registry[name] = module.fit(vw.x, vw.y)
+            else:
 
-            name, module = self._modules.keys()[0], self._modules.values()[0]
-            self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
-        self.fitted = True
+                name, module = self._modules.keys()[0], self._modules.values()[0]
+                self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
+            self.fitted = True
+        except Exception, ex:
+            raise ValueError(ex.message)
         return self
 
     def _check_if_fitted(self):

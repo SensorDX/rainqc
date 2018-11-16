@@ -100,7 +100,7 @@ class TahmoDataSource(DataSource):
             last_measure = parser.parse(stn.get('lastMeasurement'))  # Need to change to utc.
             wait_time = divmod((active_day_range - last_measure).total_seconds(), 3600)
             if wait_time[0] < threshold:
-                current_active_stations.append(stn)
+                current_active_stations.append(stn['id'])
                 continue
         return current_active_stations
 
@@ -136,6 +136,7 @@ class TahmoDataSource(DataSource):
                         current_active_stations.append(station)
                         continue
         return current_active_stations
+
 
     def daily_data(self, station_name, weather_variable, start_date, end_date):
         """
@@ -202,9 +203,19 @@ class TahmoDataSource(DataSource):
                 metadata[stn["id"]].append({"site_to": n_stn["id"], "distance": dist, "elevation": n_stn["elevation"]})
         json.dump(metadata, open(os.path.join(ROOT_DIR, "config/station_nearby.json"), "w"))
 
+    def to_json(self):
+        #Nothing to save for now.
+        json_config = {"data_source": type(self).__name__}
+        return json_config
+
+    @classmethod
+    def from_json(cls, json_config):
+        data_source = TahmoDataSource()
+        return data_source
+
 
 if __name__ == '__main__':
     ff = TahmoDataSource()
     #print ff.stations()
-    print ff.online_station()
+    print ff.online_station( threshold=72)
     #print ff.active_stations(['TA00031'])

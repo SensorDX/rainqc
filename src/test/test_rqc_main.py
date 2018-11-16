@@ -9,18 +9,19 @@ if __name__ == "__main__":
     fd = globals()['FakeTahmo']()
     print(fd)
     x = 2
-    #data_sourcex = FakeTahmo(local_data_source="experiments/dataset/tahmostation2016.csv",
-    #                        nearby_station="localdatasource/nearest_stations.csv")
-    tahmo_datasource = TahmoDataSource() #nearby_station_location="datasource/station_nearby.json")
-    target_station_q = "TA00094"
-    start_date = "2017-01-01"  # (datetime.datetime.now(timezone('utc'))-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M')
-    end_date = "2017-06-30"  # (datetime.datetime.now(timezone('utc')) - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M')
-    dd = MainRQC(data_source=tahmo_datasource,
+    data_sourcex = FakeTahmo(local_data_source="localdatasource/dataset/tahmostation2016.csv",
+                            nearby_station="localdatasource/nearest_stations.csv")
+    #tahmo_datasource = TahmoDataSource() #nearby_station_location="datasource/station_nearby.json")
+    target_station_q = "TA00024"
+    start_date = "2016-01-01"  # (datetime.datetime.now(timezone('utc'))-datetime.timedelta(days=50)).strftime('%Y-%m-%dT%H:%M')
+    end_date = "2016-06-30"  # (datetime.datetime.now(timezone('utc')) - datetime.timedelta(days=40)).strftime('%Y-%m-%dT%H:%M')
+    dd = MainRQC(data_source=data_sourcex,
                  target_station=target_station_q, radius=200)
     dd.add_view(name="PairwiseView", view=PairwiseView())
     dd.add_module(name="MixLinearModel", module=MixLinearModel())
     #print tahmo_datasource.get_stations()
-    #print tahmo_datasource.daily_data(target_station_q, RAIN, start_date, end_date)
+
+    print data_sourcex.daily_data(target_station_q, RAIN, start_date, end_date)
     fitted = dd.fit(start_date=start_date,
                     end_date=end_date)
     pickle.dump(dd.save(), open(target_station_q+'_trained.pk','w'))
@@ -30,10 +31,10 @@ if __name__ == "__main__":
     # # save src
     # print result['MixLinearModel'].shape, type(result['MixLinearModel'])
     # # jj = dd.save()
-    # print (jj)
-    # joblib.dump(jj, open('dump.pk','w'))
-    # dx = MainRQC.load(jj)
-    # result2 = dx.score(start_date=start_date, end_date=end_date)
+    #print (jj)
+    #joblib.load(open(target_station_q+'_trained.pk','r'))
+    #dx = MainRQC.load(jj)
+    #result2 = dx.score(start_date=start_date, end_date=end_date)
     # print (result2)
     # assert all([r1==r2 for r1, r2 in zip(result, result2)])
     #assert result==result2
