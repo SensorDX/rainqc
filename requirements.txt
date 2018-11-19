@@ -1,4 +1,7 @@
 pytz==2018.5
+pygal==2.4.0
+cloudant==2.10.0
+pymongo==3.7.2
 scipy==1.1.0
 matplotlib==2.2.3
 Flask==1.0.2
@@ -7,9 +10,8 @@ ranking==0.3.1
 pandas==0.23.4
 seaborn==0.9.0
 numpy==1.15.1
+Flask_PyMongo==2.2.0
 requests==2.20.0
-cloudant==2.10.0
 python_dateutil==2.7.5
-flask_restful==0.3.6
 scikit_learn==0.20.0
 xgboost==0.81

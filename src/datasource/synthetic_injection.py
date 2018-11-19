@@ -45,10 +45,11 @@ def synthetic_groups(observations, plot=False, alpha=0.1, threshold=1.0, fault_t
     injected_group = {}
 
     if len(rainy_days) < num_faults:
-        raise NameError("No enough rainy days for station")
+        print("No enough rainy days for station")
+        num_faults = num_faults/2
     rainy_events = group_events(dt, threshold, filter_length=1)
     if len(rainy_events)<1:
-        raise NameError("No enough rainy days for the station")
+        raise NameError("No enough rainy events for the station")
     selected_group = sample(rainy_events.keys())
 
     for g in selected_group:

@@ -1,6 +1,7 @@
 import os,sys ,shutil, pickle
 from datetime import datetime
 import pandas as pd
+import argparse
 import traceback
 from src import MainRQC
 from flask import Flask, request, jsonify, render_template, redirect
@@ -8,7 +9,7 @@ from definition import RAIN
 from sklearn.externals import joblib
 import logging
 from logging.handlers import RotatingFileHandler
-from src.datasource import FakeTahmo, TahmoDataSource, TahmoAPILocal, evaluate_groups
+from src.datasource import FakeTahmo, TahmoDataSource, TahmoAPILocal, evaluate_groups, DataSourceFactory
 
 from bson.binary import Binary
 from flask_pymongo import PyMongo,ObjectId
@@ -17,7 +18,7 @@ import json
 from graph import build_metric_graph, out_plot
 
 app = Flask(__name__)
-mode = "dev" #"dev" #" #could "dev" or "production"
+mode = "production" #"dev" #"dev" #" #could "dev" or "production"
 # Db configuration
 db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"),"r"))["mongodb"]
 app.config["MONGO_URI"] = db_config[mode]  #could be
@@ -34,8 +35,8 @@ MODELS = ['MixLinearModel']
 VERSION = 0.1
 
 #global variable.
-data_source = TahmoAPILocal() #TahmoDataSource() # FakeTahmo()  #  datasource connection object.
 WAIT_TIME_THRESHOLD = 72
+
 @app.route('/<station>')
 @app.route('/')
 def main(station=None):
@@ -311,6 +312,11 @@ def wipe(station=None):
         return 'Could not remove and recreate the model directory'
 
 
+# def parse_args():
+#     parser = argparse.ArgumentParser(description = "RQC command line arguments")
+#     parser.add_argument('-t', '--train', help="Sitecode")
+#     parser.add_argument('-n', '--bucketindex', help='Bucket index in 20 days bucket.', required=True)
+#     args = parser.parse_args()
 
 
 if __name__ == '__main__':
@@ -319,8 +325,11 @@ if __name__ == '__main__':
     handler.setLevel(logging.INFO)
     app.logger.addHandler(handler)
     DEBUG = True
+    data_source = FakeTahmo()
+
     if len(sys.argv)>1:
         port = int(sys.argv[1])
+
     else:
         port = 5000
     app.run(host='0.0.0.0', port=port, debug=DEBUG)
