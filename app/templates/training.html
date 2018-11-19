@@ -17,7 +17,8 @@
 The following nearby stations are used to fit the model.
     <ul id="navigation">
     {% for station in stationlist %}
-        <li><a href="{{ station }}?save={{ save }}">{{ station }}</a><strong>*</strong></li>
+        <li><a href="{{ station }}?save={{ save }}&startDate={{ train_config['start_date'] }}&
+endDate={{ train_config['end_date'] }}">{{ station }}</a><strong>*</strong></li>
     {% endfor %}
     </ul>
 <div id="result">
@@ -26,5 +27,6 @@ The following nearby stations are used to fit the model.
     <embed type="image/svg+xml" src="{{ line_chart|safe }}"></embed>
 </figure>
 </div>
+<a href="/trained">Trained models</a> | <a href="/">Main</a>
 </body>
 </html>

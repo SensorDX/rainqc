@@ -1,7 +1,8 @@
 import matplotlib.pylab as plt
 import sklearn.metrics as mt
 from numpy import round
-def roc_metric(pred, obs, plot=False, plt=None):
+
+def roc_metric(pred, obs, plot=False):
     fpr_rt_lm, tpr_rt_lm, _ = mt.roc_curve(obs, pred)
     auc_score = mt.auc(fpr_rt_lm, tpr_rt_lm, reorder=True)
     if plot:
@@ -23,6 +24,7 @@ def plot_pr_recall(pr, recall, plt):
     plt.plot(range(0, 2), range(0, 2), '-r')
     #plt.text(0.6, 0.2, "auc=" + str(auc_score))
     plt.legend(loc='best')
+    return plt
 
 
 def precision_recall(pred, obs, plot=False):

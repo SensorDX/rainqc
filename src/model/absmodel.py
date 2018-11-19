@@ -9,7 +9,7 @@ class Module(object):
 
         if not isinstance(x, np.ndarray) or not isinstance(y, np.ndarray):
             return NameError("The input should be given as ndarray")
-        self._fit(x, y, verbose, load)
+        return self._fit(x, y, verbose, load)
 
     def _fit(self, x, y, verbose=False, load=False):
         return NotImplementedError

@@ -15,9 +15,11 @@ from src.common import haversine_distance, average_angular
 variable_aggregation = {RAIN: np.sum, TEMP: np.mean, WINDR:average_angular, REL: np.mean}
 
 
-def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=None):
+def json_to_df(json_station_data, weather_variable=RAIN, group='D', filter_year=None):
     rows = json_station_data["timeseries"][weather_variable]
+  #  print rows
     df = pd.DataFrame.from_dict(rows, orient="index")
+  #  print df.head(5)
     df.rename(columns={0: weather_variable}, inplace=True)
     df['date'] = df.index
     df.index = np.arange(len(rows))
@@ -47,7 +49,7 @@ class TahmoAPILocal(DataSource):
         self.nearby_station_file = os.path.join(ROOT_DIR,"config/"+tahmo_connection["nearby_station"])
         self.station_url = tahmo_connection["station_url"]
         self.keepdim  = keepdim
-        self.local_source = os.path.join(ROOT_DIR,'localdatasource/datasource/dataset/tahmo/tahmoapi')
+        self.local_source = os.path.join(ROOT_DIR,'localdatasource/dataset/tahmo/tahmoapi')
         if not os.path.exists(self.nearby_station_file):
             self.compute_nearest_stations()
     def stations(self):
@@ -70,43 +72,44 @@ class TahmoAPILocal(DataSource):
         return response
 
     def get_data(self, station_name, start_date, end_date, data_format="json"):
-        #querystring = {"startDate": start_date, "endDate": end_date}
-        #url = self.timeseries_url % station_name
 
-        #json_data = self.__get_request(url, querystring).json()
-        json_data = json.load(open(self.local_source,'r'))
-        filter_data = json_data['stations']['timeseries'][RAIN]
-        filter_data = [{key:value} for key,value in filter_data.items() if key>start_date and key<=end_date]
-        json_data['stations']['timeseries'][RAIN] = filter_data
+        file_path = self.local_source+'/rm_'+station_name+'.json'
+        if not os.path.exists(file_path):
+            raise ValueError("Station doesn't exist")
+        json_data = json.load(open(file_path,'r'))
+        filter_data = json_data['station']['timeseries'][RAIN]
+        filter_data = {key:value for key,value in filter_data.items() if key>start_date and key<=end_date}
+        json_data['station']['timeseries'][RAIN] = filter_data
         if json_data['status'] == 'error':
             raise ValueError("Request has error %s" % json_data['error'])
 
         if data_format == "json":
-            return json_data
+            return json_data['station']
         elif data_format == "dataframe":
-            return json_data
-            #return json_to_df(json_data, group=None)
+            #return json_data
+            return json_to_df(json_data['station'], group=None)
 
     def get_stations(self):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
 
     def online_station(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
-
-        all_stations = self.stations()
-        current_active_stations = []
-
-        for stn in all_stations:
-            if not stn["active"]:
-                continue
-            if stn.get('lastMeasurement') is None:
-                continue
-
-            last_measure = parser.parse(stn.get('lastMeasurement'))  # Need to change to utc.
-            wait_time = divmod((active_day_range - last_measure).total_seconds(), 3600)
-            if wait_time[0] < threshold:
-                current_active_stations.append(stn['id'])
-                continue
+        #
+        # all_stations = self.stations()
+        # current_active_stations = []
+        #
+        # for stn in all_stations:
+        #     if not stn["active"]:
+        #         continue
+        #     if stn.get('lastMeasurement') is None:
+        #         continue
+        #
+        #     last_measure = parser.parse(stn.get('lastMeasurement'))  # Need to change to utc.
+        #     wait_time = divmod((active_day_range - last_measure).total_seconds(), 3600)
+        #     if wait_time[0] < threshold:
+        #         current_active_stations.append(stn['id'])
+        #         continue
+        current_active_stations = [ stn.split('_')[1].split('.')[0] for stn in os.listdir(self.local_source)]
         return current_active_stations
 
     def active_stations(self, station_list, active_day_range=datetime.now(tz.tzutc()), threshold=24):
@@ -121,26 +124,29 @@ class TahmoAPILocal(DataSource):
         Returns:
 
         """
+
         if len(station_list) < 1:
             raise ValueError("The station list is empty")
-        all_stations = self.get_stations()["stations"]
-        current_active_stations = []
+        all_stations = self.online_station(active_day_range=active_day_range, threshold=threshold)
+        return np.intersect1d(all_stations, station_list)
 
-        for station in station_list:
-            for stn_db in all_stations:
-                if stn_db["id"] == station:
-                    if not stn_db["active"]:
-                        continue
-                    last_measurement = stn_db.get("lastMeasurement")
-                    if last_measurement is None:
-                        continue
-                    last_measurement = parser.parse(last_measurement)  # Need to change to utc.
-
-                    wait_time = divmod((active_day_range - last_measurement).total_seconds(), 3600)
-                    if wait_time[0] < threshold:
-                        current_active_stations.append(station)
-                        continue
-        return current_active_stations
+        # current_active_stations = []
+        #
+        # for station in station_list:
+        #     for stn_db in all_stations:
+        #         if stn_db["id"] == station:
+        #             if not stn_db["active"]:
+        #                 continue
+        #             last_measurement = stn_db.get("lastMeasurement")
+        #             if last_measurement is None:
+        #                 continue
+        #             last_measurement = parser.parse(last_measurement)  # Need to change to utc.
+        #
+        #             wait_time = divmod((active_day_range - last_measurement).total_seconds(), 3600)
+        #             if wait_time[0] < threshold:
+        #                 current_active_stations.append(station)
+        #                 continue
+        # return current_active_stations
 
 
     def daily_data(self, station_name, weather_variable, start_date, end_date):
@@ -163,7 +169,7 @@ class TahmoAPILocal(DataSource):
             return None
         else:
             df = json_to_df(json_data, weather_variable=weather_variable, group='D')
-
+        #print df.tail(5)
         df = df[weather_variable]
         if self.keepdim:
             return df.values.reshape(-1,1)
@@ -181,9 +187,12 @@ class TahmoAPILocal(DataSource):
             return t_station[:k]
         return t_station
 
-    def nearby_stations(self, target_station, k=10, radius=100):
+    def nearby_stations(self, target_station, k=10, radius=100, showdist=False):
         get_within_radius = self.load_nearby_stations(target_station, radius=radius, k=k)
-        return [stn["site_to"] for stn in get_within_radius]
+        if showdist:
+            return {stn["site_to"]:stn['distance'] for stn in get_within_radius}
+        else:
+            return [stn["site_to"] for stn in get_within_radius]
 
     def get_active_nearby(self, target_station, k=10, radius=100):
         all_k_stations = self.load_nearby_stations(target_station, k=k, radius=radius)
@@ -222,5 +231,12 @@ class TahmoAPILocal(DataSource):
 if __name__ == '__main__':
     ff = TahmoAPILocal()
     #print ff.stations()
-    print ff.online_station( threshold=72)
+    ll = ff.get_data('TA00306', start_date='2017-01-01', end_date='2017-12-31', data_format='dataframe')#, weather_variable=RAIN)
+    print ll.tail(5)
+    #print ff.get
+    available = ff.online_station()
+    nrb = ff.nearby_stations('TA00139',showdist=True)
+    print np.intersect1d(available, nrb.keys())
+    #sbn.plt.show()
+    #print ff.online_station( threshold=72)
     #print ff.active_stations(['TA00031'])

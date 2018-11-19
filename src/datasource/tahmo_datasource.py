@@ -55,6 +55,15 @@ class TahmoDataSource(DataSource):
         #return [stn for stn in all_stations]
 
     def __get_request(self, url, params={}):
+        """
+        Send GET request to TahmoAPI
+        Args:
+            url:
+            params:
+
+        Returns:
+
+        """
         try:
             response = requests.request("GET", url, headers=self.header,
                                         params=params)
@@ -217,5 +226,6 @@ class TahmoDataSource(DataSource):
 if __name__ == '__main__':
     ff = TahmoDataSource()
     #print ff.stations()
+    print ff.daily_data('TA00021',start_date='2017-01-01',end_date='2017-03-01', weather_variable=RAIN)
     print ff.online_station( threshold=72)
     #print ff.active_stations(['TA00031'])

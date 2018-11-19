@@ -4,9 +4,10 @@ from model import Module, ModelFactory
 from collections import OrderedDict
 from dateutil import parser
 from pytz import utc
+from datasource import synthetic_groups, evaluate_groups
 import common
 
-from datasource import TahmoDataSource, FakeTahmo, DataSource
+from datasource import TahmoDataSource, FakeTahmo, DataSource, TahmoAPILocal
 
 
 class MainRQC(object):
@@ -171,7 +172,8 @@ class MainRQC(object):
 
                 name, module = self._modules.keys()[0], self._modules.values()[0]
                 self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
-            self.fitted = True
+            if self.module_registry[name]:
+                self.fitted = True
         except Exception, ex:
             raise ValueError(ex.message)
         return self
@@ -179,10 +181,37 @@ class MainRQC(object):
     def _check_if_fitted(self):
         if not self.fitted:
             raise ValueError("Model need to be fitted first.")
-
-    def score(self, start_date, end_date, target_station=None):
+    #def train_data(self):
+    def evaluate(self, start_date, end_date, target_station=None):
         """
-        1. Fetch data from source.
+        Evaluate trained model with synthetic fault insertion
+        Args:
+            start_date:
+            end_date:
+            target_station:
+
+        Returns (tuple(dict, dict)): Two dict for evaluation metric and synthetic fault inserted metadata.
+
+
+        """
+        self._check_if_fitted()
+        common.is_valid_date(start_date, end_date)
+        if target_station is None:
+            target_station = self.target_station
+
+        target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations,
+                                                              target_station=target_station)
+        group_data = synthetic_groups(target_station_data, alpha=0.1)
+
+        model_name = self.module_registry.keys()[0]
+        score = self._score(k_station_data, group_data['data'])[model_name]
+        return score, group_data
+        #return evaluate_groups(group_data, score)
+
+
+    def score(self, start_date, end_date, target_station=None, evaluate_data=False):
+        """
+        1. Fetch data from source
         2. Load nearby station, from saved source.
         3. Create view using the nearby stations.
         4. Predict using the trained src at self.modules_registry
@@ -191,6 +220,7 @@ class MainRQC(object):
             start_date (str):
             end_date (str):
             target_station (str):
+            evaluate_data (np.ndarray): if true, the model is evaluated using synthetic injection.
 
         Returns:
 
@@ -199,17 +229,19 @@ class MainRQC(object):
         common.is_valid_date(start_date, end_date)
         if target_station is None:
             target_station = self.target_station
+
         target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations,
                                                               target_station=target_station)
+        return self._score(k_station_data, target_station_data)
+
+    def _score(self, k_station_data, target_station_data):
         if len(self._views) < 1:
             return ValueError("No valid view definition found.")
         if len(self.module_registry) < 1:
             return ValueError("No available fitted module found.")
-
         # Check how many view definition are available.
         vw_name, vw = self.make_view(target_station_data, k_station_data)
         scores = {}
-
         if len(self.module_registry) > 1:
             for name, module in self._modules:
                 scores[name] = module.predict(x=vw.x, y=vw.y)
