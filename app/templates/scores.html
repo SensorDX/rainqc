@@ -4,13 +4,13 @@
     <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/svg.jquery.js"></script>
     <script type="text/javascript" src="http://kozea.github.com/pygal.js/javascripts/pygal-tooltips.js"></script>
     </head>
-    <>
+
  <figure>
     <embed type="image/svg+xml" src="{{ line_chart|safe }}"></embed>
 </figure>
     <span >{{ message }}</span>
 
-    <table>
+    <table border="1">
   <tr>
     <td></td>
     <td>AUC</td>
@@ -40,6 +40,7 @@
     <div><img src="{{ graphs['group'][key] }}"/> {{ key }}
     {% endfor %}
     </div>
+
 <a href="/trained">Trained models</a> | <a href="/">Main</a>
     </body>
 </html>

@@ -10,7 +10,7 @@ from sklearn.externals import joblib
 import logging
 from logging.handlers import RotatingFileHandler
 from src.datasource import FakeTahmo, TahmoDataSource, TahmoAPILocal, evaluate_groups, DataSourceFactory
-
+import numpy as np
 from bson.binary import Binary
 from flask_pymongo import PyMongo,ObjectId
 from definition import ROOT_DIR
@@ -18,13 +18,6 @@ import json
 from graph import build_metric_graph, out_plot
 
 app = Flask(__name__)
-mode = "production" #"dev" #"dev" #" #could "dev" or "production"
-# Db configuration
-db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"),"r"))["mongodb"]
-app.config["MONGO_URI"] = db_config[mode]  #could be
-MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
-
-mongo = PyMongo(app)
 
 # Parameters
 RADIUS = 100
@@ -218,9 +211,10 @@ def score(target_station):
         save_score = request.args.get('save',type=bool)
         start_date = request.args.get('startDate', type=str) # "2016-01-01"
         end_date = request.args.get('endDate', type=str) #"2016-09-30"
-        weather_variable = request.args.get('variable',type=str) #RAIN
+        weather_variable = None #request.args.get('variable',type=str) #RAIN
         date_range = pd.date_range(start_date, end_date, freq='1D')
-
+        if weather_variable is None:
+            weather_variable = RAIN
         query = {'station': target_station, 'weather_variable': weather_variable}
 
         # query db
@@ -234,6 +228,9 @@ def score(target_station):
         # try plot.
         scores = result['MixLinearModel'].reshape(-1).tolist()
         message = "Scores not yet saved."
+        threshold = np.quantile(scores, 0.95)
+        #print decision
+        scores_result = {}
         if DEBUG:
             app.logger.error(scores)
         if save_score:
@@ -243,9 +240,11 @@ def score(target_station):
                             }
             mongo.db.qc_score.insert(score_result)
             message = "Scores saved"
-
-        graph_data = out_plot(scores, date_range, target_station)
-        return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
+            return render_template('score_result.html',title=target_station, score_result=score_result['scores'], message=message,
+                                   threshold=threshold)
+            #return jsonify({'message':message,'scores':scores})
+        #graph_data = out_plot(scores, date_range, target_station)
+        #return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
     except Exception, e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
@@ -312,24 +311,43 @@ def wipe(station=None):
         return 'Could not remove and recreate the model directory'
 
 
-# def parse_args():
-#     parser = argparse.ArgumentParser(description = "RQC command line arguments")
-#     parser.add_argument('-t', '--train', help="Sitecode")
-#     parser.add_argument('-n', '--bucketindex', help='Bucket index in 20 days bucket.', required=True)
-#     args = parser.parse_args()
+def parse_args():
+    parser = argparse.ArgumentParser(description = "RQC command line arguments")
+    parser.add_argument('-m', '--mode', help="Mode either production or dev")
+    parser.add_argument('-d', '--datasource', help='Data source. TahmoAPI, FakeTahmo or TahmoBluemix')
+    parser.add_argument('-p','--port', help='Flask port. Default 5000')
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == '__main__':
     log_path = os.path.join(ROOT_DIR, "log/LOG_" + datetime.today().strftime("%Y-%m-%d") + ".log")
     handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
-    app.logger.addHandler(handler)
+
     DEBUG = True
-    data_source = FakeTahmo()
-
-    if len(sys.argv)>1:
-        port = int(sys.argv[1])
-
+    args = parse_args()
+    if args.port is not None:
+        port = int(args.port)
     else:
         port = 5000
+    if args.mode is not None:
+        mode = args.mode
+    else:
+        mode = 'dev'
+    if args.datasource is not None:
+        data_source = DataSourceFactory.get_model(args.datasource)
+    else:
+        data_source = TahmoAPILocal()
+
+    # mode = "production" #"dev" #"dev" #" #could "dev" or "production"
+    # Db configuration
+    db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"), "r"))["mongodb"]
+    app.config["MONGO_URI"] = db_config[mode]  # could be
+    MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
+
+    mongo = PyMongo(app)
+    app.logger.addHandler(handler)
+
+
     app.run(host='0.0.0.0', port=port, debug=DEBUG)
