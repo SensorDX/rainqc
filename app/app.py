@@ -26,8 +26,6 @@ WEATHER_VARIABLE = RAIN
 VIEWS = ['PairwiseView']
 MODELS = ['MixLinearModel']
 VERSION = 0.1
-
-#global variable.
 WAIT_TIME_THRESHOLD = 72
 
 @app.route('/<station>')
@@ -55,13 +53,11 @@ def trained_model():
     Returns:
 
     """
-    #query = {'weather_variable': weather_variable}
+
     query = {'version': 1, 'start_date': 1, 'end_date': 1,
                         'weather_variable': 1,
-                        'radius': 1, 'k': 1, 'views': 1, 'station': 1}
+                        'radius': 1, 'k': 1, 'views': 1, 'station': 1, 'training_date':1}
 
-
-    # mongo.db.src.find(query)
     trained_models  = mongo.db.model.find({}, query)
     trained_models = [ m for m in trained_models]
     return render_template("trained_model.html", trained_models=trained_models)
@@ -87,8 +83,6 @@ def fitted_detail():
         rqc_pk = pickle.loads(model_config['model'])  # joblib.load(open(model_name,'r'))
         rqc = MainRQC.load(rqc_pk)
 
-        result = rqc.score(model_config['start_date'], model_config['end_date'])
-            # try plot.
         scores, group_data = rqc.evaluate(model_config['start_date'], model_config['end_date']
                                           )
         metric_result, grp_eval= evaluate_groups(group_data, scores)
@@ -155,20 +149,6 @@ def train(station):
                         'weather_variable': weather_variable,
                         'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS, 'station': station}
 
-
-    # if evaluate:
-    #     # scores = _score(target_station=station, weather_variable=weather_variable,
-    #     #                 start_date=start_date, end_date=end_date)
-    #     scores = rqc.evaluate(start_date, end_date, target_station=station)['MixLinearModel'].reshape(-1).tolist()
-    #     date_range = pd.date_range(start_date, end_date, freq='1D')
-    #     graph = out_plot(scores, date_range=date_range, target_station=station)
-    #     # raw data.
-    #     raw_data = data_source.daily_data(target_station=station, target_variable=RAIN,
-    #                                       start_date=start_date, end_date=end_date).reshape(-1)
-    #     raw_plt = out_plot(raw_data, date_range, target_station=station)
-    #
-    #     #return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
-    #     #                       train_config=train_parameters, line_chart=raw_plt)
     if save:
         model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
         joblib.dump(fitted.save(), open(model_name, 'w'))
@@ -216,7 +196,7 @@ def score(target_station):
         if weather_variable is None:
             weather_variable = RAIN
         query = {'station': target_station, 'weather_variable': weather_variable}
-
+        # Get station with latest date of training date.
         # query db
         model_config = mongo.db.model.find_one(query)
         if model_config is None:
@@ -322,15 +302,21 @@ def parse_args():
 
 if __name__ == '__main__':
     log_path = os.path.join(ROOT_DIR, "log/LOG_" + datetime.today().strftime("%Y-%m-%d") + ".log")
-    handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
-    handler.setLevel(logging.INFO)
+    #if not os.path.exists('log'):
+    #    os.mkdir('log')
+    log_path = os.path.basename(log_path)
+
+    #handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
+    #handler.setLevel(logging.INFO)
 
     DEBUG = True
     args = parse_args()
+    #args.datasource = 'FakeTahmo'
+    #args.mode = 'production'
     if args.port is not None:
         port = int(args.port)
     else:
-        port = 5000
+        port = 8000
     if args.mode is not None:
         mode = args.mode
     else:
@@ -338,7 +324,7 @@ if __name__ == '__main__':
     if args.datasource is not None:
         data_source = DataSourceFactory.get_model(args.datasource)
     else:
-        data_source = TahmoAPILocal()
+        data_source = DataSourceFactory.get_model('TahmoAPILocal')
 
     # mode = "production" #"dev" #"dev" #" #could "dev" or "production"
     # Db configuration
@@ -347,7 +333,7 @@ if __name__ == '__main__':
     MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
 
     mongo = PyMongo(app)
-    app.logger.addHandler(handler)
-
+    #app.logger.addHandler(handler)
+    port = int(os.getenv('PORT', port))
 
     app.run(host='0.0.0.0', port=port, debug=DEBUG)

@@ -1,0 +1,6 @@
+experiments/
+localdatasource/dataset/tahmo/
+log/*
+notebook/
+.gitignore
+.git/

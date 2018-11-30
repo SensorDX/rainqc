@@ -84,7 +84,7 @@ class MixLinearModel(Module):
         Returns:
 
         """
-
+        x, y = Module.validate(x, y)
 
         l_x, l_y = np.log(x + self.eps), np.log(y + self.eps)
         y_zero_one = (y > 0.0).astype(int)
@@ -123,6 +123,7 @@ class MixLinearModel(Module):
 
         Returns:
         """
+        x , y = Module.validate(x, y)
         if self.fitted is False:
             raise NotFittedError("Call fit before prediction")
         

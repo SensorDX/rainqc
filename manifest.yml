@@ -1,0 +1,7 @@
+---
+applications:
+ - name: tahmorqc
+   random-route: true
+   memory: 512M
+   timeout: 80
+

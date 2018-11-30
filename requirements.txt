@@ -14,4 +14,3 @@ Flask_PyMongo==2.2.0
 requests==2.20.0
 python_dateutil==2.7.5
 scikit_learn==0.20.0
-xgboost==0.81
