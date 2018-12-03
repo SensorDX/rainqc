@@ -1,5 +1,5 @@
 """ Steps for training operations.
- Train batch of stations for training, make sure.
+ Train batch of stations for training. The steps are.
 
 check the database for which stations are trained for the last Y month.
  For each not trained stations:
@@ -25,3 +25,9 @@ check the database for which stations are trained for the last Y month.
   - Load data from the nearby stations/Mostly daily data. If some of them don't have try to impute the value.
 
 """
+
+
+class TrainingStations(object):
+    pass
+
+

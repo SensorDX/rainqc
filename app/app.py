@@ -147,7 +147,8 @@ def train(station):
 
     train_parameters = {'version': VERSION, 'start_date': start_date, 'end_date': end_date,
                         'weather_variable': weather_variable,
-                        'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS, 'station': station}
+                        'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS, 'station': station,
+                        'training_date':datetime.utcnow().strftime('%Y-%m-%d')}
 
     if save:
         model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
@@ -176,7 +177,7 @@ def train_all():
         # train each station seperately
         # Add waiting time and error handling for each station.
         train(station)
-
+    # 
 @app.route('/score/<target_station>')
 def score(target_station):
     """
@@ -311,7 +312,7 @@ if __name__ == '__main__':
 
     DEBUG = True
     args = parse_args()
-    #args.datasource = 'FakeTahmo'
+    args.datasource = 'FakeTahmo'
     #args.mode = 'production'
     if args.port is not None:
         port = int(args.port)
