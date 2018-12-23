@@ -9,7 +9,7 @@ geo_json = { "features":[], "type":"FeatureCollection"}
 #print df.head(5)
 for indx, row in  df.iterrows():
     #geo_station = {}
-    print row["country"]
+    print (row["country"])
     geo_station = { "geometry":{"coordinates":[row["latitude"], row["longitude"], row["elevation"]],
                                "type":"Point"},
                     "properties":{
@@ -28,5 +28,5 @@ for indx, row in  df.iterrows():
     geo_json["features"].append(geo_station)
 
 
-print geo_json
+print (geo_json)
 json.dump(geo_json, open("africa.geojson","w"))

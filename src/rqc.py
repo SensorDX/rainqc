@@ -1,13 +1,13 @@
+from six import itervalues, iterkeys
 from definition import RAIN
-from view.view import View, ViewFactory
-from model import Module, ModelFactory
+from .view.view import View, ViewFactory
+from .model import Module, ModelFactory
 from collections import OrderedDict
 from dateutil import parser
 from pytz import utc
-from datasource import synthetic_groups, evaluate_groups
-import common
-
-from datasource import TahmoDataSource, FakeTahmo, DataSource, TahmoAPILocal
+from .datasource import synthetic_groups, evaluate_groups
+from . import common
+from .datasource import TahmoDataSource, FakeTahmo, DataSource, TahmoAPILocal
 
 
 class MainRQC(object):
@@ -132,7 +132,7 @@ class MainRQC(object):
             return self.view_registry.keys(), self.view_registry.values()
         elif len(self._views) == 1:
             # Create a single view
-            vw_name, vw = self._views.keys()[0], self._views.values()[0]
+            vw_name, vw = list(self._views.keys())[0], list(self._views.values())[0]
             self.view_registry[vw_name] = vw.make_view(target_station_data, k_station_data)
             return vw_name, self.view_registry[vw_name]
         else:
@@ -170,12 +170,12 @@ class MainRQC(object):
                     self.module_registry[name] = module.fit(vw.x, vw.y)
             else:
 
-                name, module = self._modules.keys()[0], self._modules.values()[0]
+                name, module = list(self._modules.keys())[0], list(self._modules.values())[0]
                 self.module_registry[name] = module.fit(x=vw.x, y=vw.y)
             if self.module_registry[name]:
                 self.fitted = True
-        except Exception, ex:
-            raise ValueError(ex.message)
+        except Exception as ex:
+            raise ex #ValueError()
         return self
 
     def _check_if_fitted(self):

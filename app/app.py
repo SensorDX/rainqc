@@ -1,3 +1,4 @@
+
 import os,sys ,shutil, pickle
 from datetime import datetime
 import pandas as pd
@@ -11,12 +12,14 @@ import logging
 from logging.handlers import RotatingFileHandler
 from src.datasource import FakeTahmo, TahmoDataSource, TahmoAPILocal, evaluate_groups, DataSourceFactory
 import numpy as np
+from dateutil import parser
+from pytz import utc
 from bson.binary import Binary
 from flask_pymongo import PyMongo,ObjectId
 from definition import ROOT_DIR
 import json
-from graph import build_metric_graph, out_plot
-
+from graph import build_graph, out_plot, build_metric_graph
+from training_operation import check_for_training
 app = Flask(__name__)
 
 # Parameters
@@ -104,7 +107,7 @@ def fitted_detail():
         graph_data = out_plot(raw_data, date_range, model_config['station'],flag_data=flag_data)
         return render_template('scores.html', title=model_config['station'], line_chart=graph_data, metrics=metric_result,
                                graphs=graphs)
-    except Exception, e:
+    except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
@@ -134,6 +137,13 @@ def train(station):
         end_date = "2016-12-31"
     if weather_variable is None:
         weather_variable = RAIN
+    training_config = {"radius":RADIUS, "MAX_K":MAX_K, "FRACTION_ROWS":0.5, "MIN_STATION":4}
+    check_station, err = check_for_training(data_source=data_source, target_station=station, variable=weather_variable,
+                                       start_date=start_date, end_date=end_date, config=training_config)
+    if not check_station:
+        # If error happens -- then make active the last trained model.
+        return render_template("errorpage.html", error = err)
+
     rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source,
                   num_k_stations=MAX_K, radius=RADIUS)
 
@@ -152,7 +162,7 @@ def train(station):
 
     if save:
         model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
-        joblib.dump(fitted.save(), open(model_name, 'w'))
+       # joblib.dump(fitted.save(), open(model_name, 'w'))
         pk_model = pickle.dumps(fitted.save())
         train_parameters['model'] = Binary(pk_model)
         mongo.db.model.insert(train_parameters)
@@ -226,7 +236,7 @@ def score(target_station):
             #return jsonify({'message':message,'scores':scores})
         #graph_data = out_plot(scores, date_range, target_station)
         #return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
-    except Exception, e:
+    except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 @app.route('/evaluate/<station>')
@@ -262,7 +272,7 @@ def evaluate(station):
 
         #graph_data = out_plot(scores, date_range, target_station)
         #return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
-    except Exception, e:
+    except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
@@ -277,19 +287,19 @@ def wipe(station=None):
         os.makedirs(MODEL_DIR)
         query = {}
         if station is not None:
-            station = request.args.get('station')
+            station = request.args.get('station', type=str)
             variable = request.args.get('weather_variable', type=str)
             version = request.args.get('version',type=str)
-            query = {'station': station, 'weather_variable': variable, 'version': version}
-        mongo.db.model.deleteMany(query)
-        app.logger.info('Models wiped')
+            query = {'station': station} #, 'weather_variable': variable, 'version': version}
+        mongo.db.model.delete_many(query)
+        app.logger.info('Models {} wiped'.format(query))
         print('Models wiped')
-
         return redirect('/')
 
-    except Exception, e:
+    except Exception as e:
         app.logger.error('An error occured {}'.format(str(e)))
-        return 'Could not remove and recreate the model directory'
+        return 'Could not remove and recreate the model directory {}'.format(str(e))
+
 
 
 def parse_args():

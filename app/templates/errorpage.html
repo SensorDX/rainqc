@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Error page</title>
+</head>
+<body>
+<h2> Training can't complete due to error.</h2>
+{{ error['message'] }}
+<ul>
+    {% for item, value in error["parameters"].items() %}
+    <li>{{ item }}: {{ value }}</li>
+    {% endfor %}
+</ul>
+</body>
+</html>

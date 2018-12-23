@@ -22,5 +22,5 @@ if __name__ == '__main__':
         gg.columns =[colname]
         if gg.shape[0]==365:
             df = pd.concat([df,gg],axis=1)
-        print df.shape
+        print (df.shape)
     df.to_csv("mesonet_2009.csv",index=False)

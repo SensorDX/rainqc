@@ -586,3 +586,4 @@ def is_valid_date(start_date, end_date):
             raise ValueError("Start date {} could not be larger than end date {}".format(start_date, end_date))
     except ValueError as err:
         raise err
+    return True

@@ -22,10 +22,10 @@ class Module(object):
             return NameError("The input should be given as ndarray")
 
         x = np.asarray(x)
-        assert x.ndim == 2
-        assert y.ndim == 2
+        #assert x.ndim == 2
+        #assert y.ndim == 2
         assert x.dtype.kind == 'f'
-        assert y.shape[1] == x.shape[1]
+        assert y.shape[0] == x.shape[0]
         assert y.dtype.kind == 'f'
 
         return x, y

@@ -1,4 +1,4 @@
-from local_source import DataSource, json_to_df
+from .local_source import DataSource, json_to_df
 import numpy as np
 import pandas as pd
 import json
@@ -51,4 +51,4 @@ if __name__ == '__main__':
     jxx = pd.DataFrame(xx)
     #print jxx.head(5)
     #print ToyDataSource.nearby_stations('TA0001', k=5)
-    print ToyDataSource.measurements('TA0001','pr','2017-01-10','2017-12-12', group='D')
+    print (ToyDataSource.measurements('TA0001','pr','2017-01-10','2017-12-12', group='D'))

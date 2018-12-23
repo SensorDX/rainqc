@@ -23,7 +23,8 @@
     <th class="tg-0lax">End date</th>
     <th class="tg-0lax">Max neighbor</th>
     <th class="tg-0lax">Radius</th>
-  </tr>
+    <th class="tg-0lax">Training date</th>
+     </tr>
     {% for model in trained_models %}
         <!--<li><a href="{{ model['station'] }}?save={{ save }}">{{ model['station'] }}</a><strong>*</strong></li>-->
 
@@ -37,6 +38,7 @@
     <td class="tg-0lax">{{ model['end_date'] }}</td>
     <td class="tg-0lax">{{ model['k'] }}</td>
     <td class="tg-0lax">{{ model['radius'] }}</td>
+         <td class="tg-0lax">{{ model['training_date'] }}</td>
      </tr>
     {% endfor %}
 </table></div>

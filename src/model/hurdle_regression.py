@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from sklearn.exceptions import NotFittedError
 from sklearn.neighbors import KernelDensity
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -9,7 +10,9 @@ import numpy as np
 from sklearn.model_selection import GridSearchCV
 import seaborn as sbn
 import logging
-from absmodel import Module
+from .absmodel import Module
+
+
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
 logging.basicConfig(filename="logfile.log",
                     level=logging.DEBUG, format=logger_format,

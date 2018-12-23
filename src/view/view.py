@@ -76,7 +76,7 @@ class PairwiseView(View):
         if not all([len_series == value.shape[0] for value in k_stations.values()]):
             raise ValueError("Dimension mismatch b/n target station and one of the k stations")
 
-        tuples_list = [target_station] + k_stations.values()
+        tuples_list = [target_station] + list(k_stations.values())
         dt = np.hstack(tuples_list)
         vw = ViewDefinition(name=self.__name__, label=k_stations.keys(),
                             x=dt[:, 1:], y=dt[:, 0:1])

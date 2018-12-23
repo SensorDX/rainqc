@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 from dateutil import parser, tz
 
-from abcdatasource import DataSource
+from .abcdatasource import DataSource
 from definition import *
 from definition import ROOT_DIR
 from src.common import haversine_distance, average_angular
@@ -226,6 +226,6 @@ class TahmoDataSource(DataSource):
 if __name__ == '__main__':
     ff = TahmoDataSource()
     #print ff.stations()
-    print ff.daily_data('TA00021',start_date='2017-01-01',end_date='2017-03-01', weather_variable=RAIN)
-    print ff.online_station( threshold=72)
+    print (ff.daily_data('TA00021',start_date='2017-01-01',end_date='2017-03-01', weather_variable=RAIN))
+    print (ff.online_station( threshold=72))
     #print ff.active_stations(['TA00031'])

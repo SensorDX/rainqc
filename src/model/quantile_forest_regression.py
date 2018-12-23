@@ -1,6 +1,6 @@
 from sklearn.ensemble.forest import RandomForestRegressor
 import numpy as np
-import absmodel
+from . import absmodel
 
 class QuantileForestRegression(absmodel.Module):
 

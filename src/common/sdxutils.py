@@ -1,7 +1,7 @@
 ## compute nearest station from a given
 import pandas as pd
 import numpy as np
-from utils import merge_two_dicts
+from .utils import merge_two_dicts
 
 ## Weather variable vocablary.
 

@@ -1,5 +1,5 @@
-from hurdle_regression import MixLinearModel, LinearRegression
-from quantile_forest_regression import QuantileForestRegression
+from .hurdle_regression import MixLinearModel, LinearRegression
+from .quantile_forest_regression import QuantileForestRegression
 class ModelFactory:
     @staticmethod
     def get_model(model_name):

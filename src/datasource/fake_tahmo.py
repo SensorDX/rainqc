@@ -1,7 +1,9 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
 import pandas as pd
 from definition import ROOT_DIR
-from abcdatasource import DataSource
+from .abcdatasource import DataSource
 import os
+
 
 
 class FakeTahmo(DataSource):
@@ -23,12 +25,21 @@ class FakeTahmo(DataSource):
     def stations(self):
         stations = self.data.columns.tolist()
         return [{'online':True, 'id': stn, 'active':True} for stn in stations]
+    def exists(self, station):
+        return station in self.data.columns.tolist()
 
     def daily_data(self, target_station, target_variable, start_date, end_date):
         ###
+
         if target_station is None:
-            raise ValueError("Station is empty")
+            raise ValueError("Station {} is empty or None".format(target_station))
+        if not self.exists(target_station):
+            raise ValueError('Station {} doesn\'t exist'.format(target_station))
+
         station_data = self.data[target_station][start_date:end_date].values
+
+        if station_data.shape[0]<1:
+            raise ValueError('Station {} doesn\'t have data'.format(target_station))
         return station_data.reshape(-1, 1)
 
     def nearby_stations(self, target_station, k=None, radius=100):

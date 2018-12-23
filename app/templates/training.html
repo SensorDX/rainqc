@@ -18,7 +18,7 @@ The following nearby stations are used to fit the model.
     <ul id="navigation">
     {% for station in stationlist %}
         <li><a href="{{ station }}?save={{ save }}&startDate={{ train_config['start_date'] }}&
-endDate={{ train_config['end_date'] }}">{{ station }}</a><strong>*</strong></li>
+endDate={{ train_config['end_date'] }}">{{ station }}</a></li>
     {% endfor %}
     </ul>
 <div id="result">

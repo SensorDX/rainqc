@@ -49,7 +49,7 @@ def precision_at_recall(pred, obs):
 #     insert_fault[rainy_days] = 0.0  # Flatten days with rain events.
 #     fault_days = abnormal_report + rainy_days
 if __name__ == '__main__':
-    print ap(obs=[1, 0, 1, 1], pred=[.32, .52, .26, .86])
+    print (ap(obs=[1, 0, 1, 1], pred=[.32, .52, .26, .86]))
 
 
 # TODO: Rearragne the metric files.

@@ -116,10 +116,10 @@ if __name__ == '__main__':
     ll = LocalDataSource
     ll.data_path = '../localdatasource'
     target_station = 'TA00025'
-    print ll.nearby_stations(target_station, k=30)
+    print (ll.nearby_stations(target_station, k=30))
     # Measurements:
     ms = ll.measurements(target_station, 'pr',
                  date_from='2017-01-01 00:00:00',
                  date_to='2017-05-01 00:00:00')
-    print ms
+    print (ms)
    # print ms.tail(2)

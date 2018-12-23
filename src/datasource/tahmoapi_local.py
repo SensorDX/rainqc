@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import json
 from datetime import datetime
 from operator import itemgetter
@@ -7,7 +8,7 @@ import pandas as pd
 import requests
 from dateutil import parser, tz
 
-from abcdatasource import DataSource
+from .abcdatasource import DataSource
 from definition import *
 from definition import ROOT_DIR
 from src.common import haversine_distance, average_angular
@@ -232,11 +233,11 @@ if __name__ == '__main__':
     ff = TahmoAPILocal()
     #print ff.stations()
     ll = ff.get_data('TA00306', start_date='2017-01-01', end_date='2017-12-31', data_format='dataframe')#, weather_variable=RAIN)
-    print ll.tail(5)
+    print (ll.tail(5))
     #print ff.get
     available = ff.online_station()
     nrb = ff.nearby_stations('TA00139',showdist=True)
-    print np.intersect1d(available, nrb.keys())
+    print (np.intersect1d(available, nrb.keys()))
     #sbn.plt.show()
     #print ff.online_station( threshold=72)
     #print ff.active_stations(['TA00031'])
