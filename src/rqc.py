@@ -112,8 +112,10 @@ class MainRQC(object):
         if len(k_stations_data.keys()) < 1:
             raise ValueError("All of the active station {} don't have data starting date {} to {}.".format(active_station, start_date, end_date))
             #return
-        else:
-            print ("There are {} available stations to use".format(k_stations_data.keys()))
+
+        #else:
+        #    print ("There are {} available stations to use".format(k_stations_data.keys()))
+
         return target_station_data, k_stations_data
 
     def make_view(self, target_station_data, k_station_data):
@@ -278,6 +280,7 @@ class MainRQC(object):
             rqc_config['views'][view_name] = view_name
         rqc_config["parameters"] = self._parameters
         rqc_config["data_source"] = {type(self.data_source).__name__: self.data_source.to_json()}
+
         if serialize:
             pass
         return rqc_config
@@ -303,7 +306,9 @@ class MainRQC(object):
             if param in rqc.__dict__:
                 setattr(rqc, param, value)
 
-        ds_name, ds_config = next(rqc_config["data_source"].iteritems())
+        ds_name, ds_config = rqc_config["data_source"].items()[0]
+        #for k, v in rqc_config["data_source"].items():
+        #    ds_name, ds_config = k, v
         ds_cls = globals()[ds_name]
         rqc.data_source = ds_cls.from_json(ds_config)
 

@@ -54,7 +54,7 @@ class FakeTahmo(DataSource):
     def active_stations(self, station_list, active_day_range="2016-01-01"):
         return station_list
 
-    def online_station(self, threshold=72):
+    def online_stations(self, threshold=72):
         return self.data.columns.tolist()
 
     def to_json(self):

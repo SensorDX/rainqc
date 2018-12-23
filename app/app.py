@@ -1,5 +1,6 @@
 
 import os,sys ,shutil, pickle
+import time
 from datetime import datetime
 import pandas as pd
 import argparse
@@ -7,7 +8,6 @@ import traceback
 from src import MainRQC
 from flask import Flask, request, jsonify, render_template, redirect
 from definition import RAIN
-from sklearn.externals import joblib
 import logging
 from logging.handlers import RotatingFileHandler
 from src.datasource import FakeTahmo, TahmoDataSource, TahmoAPILocal, evaluate_groups, DataSourceFactory
@@ -37,7 +37,7 @@ def main(station=None):
     global data_source
 
     all_stations = data_source.stations()
-    online_stations = data_source.online_station(threshold=WAIT_TIME_THRESHOLD)
+    online_stations = data_source.online_stations(threshold=WAIT_TIME_THRESHOLD)
 
     for stn in all_stations:
         if stn['id'] in online_stations:
@@ -128,7 +128,6 @@ def train(station):
     start_date = request.args.get('startDate',type=str)
     end_date = request.args.get('endDate', type=str)
     weather_variable = request.args.get('variable')
-    evaluate = request.args.get('evaluate', type=bool)
     save = request.args.get('save',type=bool)
 
     # target_station_q = "TA00030"
@@ -137,57 +136,75 @@ def train(station):
         end_date = "2016-12-31"
     if weather_variable is None:
         weather_variable = RAIN
-    training_config = {"radius":RADIUS, "MAX_K":MAX_K, "FRACTION_ROWS":0.5, "MIN_STATION":4}
+    training_config = {"radius":RADIUS, "MAX_K":MAX_K, "FRACTION_ROWS":0.5, "MIN_STATION":2} #later load from config file
     check_station, err = check_for_training(data_source=data_source, target_station=station, variable=weather_variable,
                                        start_date=start_date, end_date=end_date, config=training_config)
     if not check_station:
-        # If error happens -- then make active the last trained model.
-        return render_template("errorpage.html", error = err)
+       return render_template("errorpage.html", error = err)
 
-    rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source,
-                  num_k_stations=MAX_K, radius=RADIUS)
-
-    for view_name in VIEWS:
-        rqc.add_view(name=view_name)
-    for m_name in MODELS:
-        rqc.add_module(name=m_name)
-
-    fitted = rqc.fit(start_date=start_date,
-                     end_date=end_date)
-
-    train_parameters = {'version': VERSION, 'start_date': start_date, 'end_date': end_date,
-                        'weather_variable': weather_variable,
-                        'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS, 'station': station,
-                        'training_date':datetime.utcnow().strftime('%Y-%m-%d')}
+    fitted, train_parameters = train_station(station, weather_variable, start_date, end_date)
 
     if save:
         model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
        # joblib.dump(fitted.save(), open(model_name, 'w'))
-        pk_model = pickle.dumps(fitted.save())
-        train_parameters['model'] = Binary(pk_model)
-        mongo.db.model.insert(train_parameters)
+        save_model(fitted, train_parameters)
     return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
                            train_config=train_parameters)
 
-@app.route('/trainall')
-def train_all():
-    """
-    Train all stations
-    Returns:
 
-    """
-    start_date = request.args.get('startDate')
-    end_date = request.args.get('endDate')
-    weather_variable = request.args.get('variable')
+def save_model(fitted, train_parameters):
+    pk_model = pickle.dumps(fitted.save())
+    train_parameters['model'] = Binary(pk_model)
+    mongo.db.model.insert(train_parameters)
 
 
+def train_station(station, weather_variable, start_date, end_date):
+
+    rqc = MainRQC(target_station=station, variable=weather_variable, data_source=data_source,
+                  num_k_stations=MAX_K, radius=RADIUS)
+    for view_name in VIEWS:
+        rqc.add_view(name=view_name)
+    for m_name in MODELS:
+        rqc.add_module(name=m_name)
+    fitted = rqc.fit(start_date=start_date,
+                     end_date=end_date)
+    train_parameters = {'version': VERSION, 'start_date': start_date, 'end_date': end_date,
+                        'weather_variable': weather_variable,
+                        'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS,
+                        'station': station,
+                        'training_date': datetime.utcnow().strftime('%Y-%m-%d')}
+    return fitted, train_parameters
+
+def train_all(data_source, start_date, end_date):
+    variable = RAIN
+    config = {"radius": 100, "MAX_K": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
     threshold_waiting_hour = 72
-    all_stations = data_source.online_station(threshold=threshold_waiting_hour, active_day_range=end_date)
-    for station in all_stations:
-        # train each station seperately
-        # Add waiting time and error handling for each station.
-        train(station)
-    # 
+    all_stations = data_source.online_stations(threshold=threshold_waiting_hour) #, active_day_range=end_date)
+    trained_station = {}
+
+    for stn in all_stations:
+         print ("Starting training operation for station {}".format(stn))
+         trained, error= check_for_training(data_source, stn, variable, start_date, end_date, config)
+         if trained:
+             # if trained succesfully. save and move
+             fitted, train_parameters = train_station(station=stn, weather_variable=variable, start_date=start_date, end_date=end_date)
+             if fitted:
+                 save_model(fitted, train_parameters)
+                 error['failed'] = False
+                 trained_station[stn] = error
+                 print ("Model {} trained ".format(stn))
+         else:
+             # Register the errors and continue to another stations.
+             error['failed'] = True
+             trained_station[stn] = error
+             app.logger.error(error)
+         time.sleep(3)
+
+
+    # save to json
+    json.dump(trained_station, open(ROOT_DIR+'app/asset/train_stat.json','w'))
+
+
 @app.route('/score/<target_station>')
 def score(target_station):
     """
@@ -206,9 +223,8 @@ def score(target_station):
         date_range = pd.date_range(start_date, end_date, freq='1D')
         if weather_variable is None:
             weather_variable = RAIN
+
         query = {'station': target_station, 'weather_variable': weather_variable}
-        # Get station with latest date of training date.
-        # query db
         model_config = mongo.db.model.find_one(query)
         if model_config is None:
             raise ValueError("Couldn't find the model")
@@ -218,10 +234,8 @@ def score(target_station):
         result = rqc.score(start_date, end_date)
         # try plot.
         scores = result['MixLinearModel'].reshape(-1).tolist()
-        message = "Scores not yet saved."
         threshold = np.quantile(scores, 0.95)
-        #print decision
-        scores_result = {}
+
         if DEBUG:
             app.logger.error(scores)
         if save_score:
@@ -306,7 +320,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description = "RQC command line arguments")
     parser.add_argument('-m', '--mode', help="Mode either production or dev")
     parser.add_argument('-d', '--datasource', help='Data source. TahmoAPI, FakeTahmo or TahmoBluemix')
-    parser.add_argument('-p','--port', help='Flask port. Default 5000')
+    parser.add_argument('-p','--port', help='Flask port. Default 8000')
+    parser.add_argument('-s','--startdate', help='start date for training')
+    parser.add_argument('-e', '--enddate', help='end date for training')
+    parser.add_argument('-t','--trainall', help='weather variable', type=bool)
     args = parser.parse_args()
     return args
 
@@ -317,13 +334,14 @@ if __name__ == '__main__':
     #    os.mkdir('log')
     log_path = os.path.basename(log_path)
 
-    #handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
-    #handler.setLevel(logging.INFO)
+    handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
+    handler.setLevel(logging.INFO)
 
     DEBUG = True
     args = parse_args()
-    args.datasource = 'FakeTahmo'
+    args.datasource = 'TahmoAPILocal'
     #args.mode = 'production'
+
     if args.port is not None:
         port = int(args.port)
     else:
@@ -337,14 +355,26 @@ if __name__ == '__main__':
     else:
         data_source = DataSourceFactory.get_model('TahmoAPILocal')
 
-    # mode = "production" #"dev" #"dev" #" #could "dev" or "production"
-    # Db configuration
     db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"), "r"))["mongodb"]
     app.config["MONGO_URI"] = db_config[mode]  # could be
     MODEL_DIR = os.path.join(ROOT_DIR, "app/asset")
 
     mongo = PyMongo(app)
-    #app.logger.addHandler(handler)
-    port = int(os.getenv('PORT', port))
+    app.logger.addHandler(handler)
+    if args.trainall is not None:
+        os.environ['PYTHONPATH'] = '.'
 
-    app.run(host='0.0.0.0', port=port, debug=DEBUG)
+        if args.startdate is not None or args.enddate is not None:
+            train_all(data_source, start_date=args.startdate, end_date=args.enddate)
+
+        else:
+            raise ValueError("Either startdate or enddate are missing")
+    else:
+
+        # mode = "production" #"dev" #"dev" #" #could "dev" or "production"
+        # Db configuration
+
+
+        port = int(os.getenv('PORT', port))
+
+        app.run(host='0.0.0.0', port=port, debug=DEBUG)

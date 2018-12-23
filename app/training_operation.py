@@ -44,21 +44,29 @@ logging.basicConfig(filename="logfile.log",
                     filemode='w')  # use filemode='a' for APPEND
 logger = logging.getLogger(__name__)
 
+class TrainBucket:
+    def __init__(self):
+        self.message
+
+
 def train_all(data_source, variable, start_date, end_date, config):
     ## Train all station anynchronously starting
     ## Check if all can be trained.
     all_station = data_source.online_stations()
-    trained_station = []
+    trained_station = {}
     for stn in all_station:
          trained, error= check_for_training(data_source, stn, variable, start_date, end_date, config)
          if trained:
              # if trained succesfully. save and move
-             pass
+             error['failed'] = False
+             trained_station[stn] = error
          else:
              # Register the errors and continue to another stations.
+             error['failed'] = True
+             trained_station[stn] = error
         # sleep for sometime.
     # print statistics once done.
-
+    return trained_station
 
 
 def check_for_training(data_source, target_station, variable, start_date, end_date, config):
@@ -136,7 +144,11 @@ if __name__ == '__main__':
     start_date = "2016-01-01"
     end_date = "2016-12-31"
 
-    config = {"radius":100, "MAX_K":5, "FRACTION_ROWS":0.5, "MIN_STATION":2}
+    config = {"radius":100, "MAX_K":5, "FRACTION_ROWS":0.5, "MIN_STATION":3}
     fk = FakeTahmo()
     print (fk.stations())
     print (check_for_training(fk, None,variable, start_date, end_date, config))
+    ## Check all training operations
+    training_error_metric = train_all(fk, variable, start_date, end_date, config)
+    for stn, value in training_error_metric.items():
+        print (stn, value)

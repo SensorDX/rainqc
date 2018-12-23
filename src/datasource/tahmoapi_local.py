@@ -94,7 +94,7 @@ class TahmoAPILocal(DataSource):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
 
-    def online_station(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
+    def online_stations(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
         #
         # all_stations = self.stations()
         # current_active_stations = []
