@@ -37,6 +37,7 @@ from src.common.utils import is_valid_date
 from src.datasource.fake_tahmo import FakeTahmo
 from definition import RAIN
 import logging
+import numpy as np
 
 logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
 logging.basicConfig(filename="logfile.log",
@@ -44,9 +45,6 @@ logging.basicConfig(filename="logfile.log",
                     filemode='w')  # use filemode='a' for APPEND
 logger = logging.getLogger(__name__)
 
-class TrainBucket:
-    def __init__(self):
-        self.message
 
 
 def train_all(data_source, variable, start_date, end_date, config):
@@ -64,40 +62,46 @@ def train_all(data_source, variable, start_date, end_date, config):
              # Register the errors and continue to another stations.
              error['failed'] = True
              trained_station[stn] = error
-        # sleep for sometime.
-    # print statistics once done.
+
     return trained_station
 
+def is_valid_variables(data_source, target_station, variable, start_date, end_date):
+    if data_source is None:
+        raise ValueError("Data source is None")
+    if target_station is None:
+        raise ValueError("Target station is not given or None")
+    if not is_valid_date(start_date, end_date):
+        raise ValueError("Invalid date format")
 
-def check_for_training(data_source, target_station, variable, start_date, end_date, config):
+def check_for_training(data_source, target_station, variable, start_date, end_date, config,
+                       k_stations=None):
     error_message = {}
     try:
+        is_valid_variables(data_source, target_station, variable, start_date, end_date)
 
-        if target_station is None:
-            raise ValueError("Target station is not given or None")
-            #return False, error_message
-        # Check the date format.
-        if not is_valid_date(start_date, end_date):
-            raise ValueError("Invalid date format")
-            #return False, error_message
-        k_stations_data = {}
+
         target_station_data = data_source.daily_data(target_station, variable, start_date, end_date)
         if target_station_data is None:
             raise ValueError("Target station has no data for the given date")
+        if k_stations is None:
 
-        k_stations = data_source.nearby_stations(target_station=target_station, radius=config["radius"])
+            k_stations = data_source.nearby_stations(target_station=target_station, radius=config["radius"])
+        else:
+            assert isinstance(k_stations, list)
+            assert len(k_stations) > 0
+
+
         if len(k_stations) < 1:
             raise ValueError("The number of neighbor stations are few {}".format(len(k_stations)))
-            #return False, error_message
 
         nrows = target_station_data.shape[0]
         active_date = utc.localize(parser.parse(end_date))
         active_station = data_source.active_stations(k_stations, active_day_range=active_date)
 
         if len(active_station) < 1:
-            raise ValueError("There is no active station to query data")
-            #return False, error_message
+            raise ValueError("There is no active nearby stations to query data")
 
+        k_stations_data = {}
         k = config["MAX_K"]  # Filter k station if #(active stations) > k
         for stn in active_station:
             if k < 1:
@@ -105,7 +109,6 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
             current_data = data_source.daily_data(stn, variable, start_date, end_date)
             if current_data is None:
                 continue
-            # if current_data.shape[0] <= nrows:
 
             k_stations_data[stn] = current_data
             k -= 1
@@ -113,9 +116,9 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
         if len(k_stations_data.keys()) < 1:
             raise ValueError( "All of the active station {} don't have data starting date {} to {}.".format(active_station, start_date,
                                                                                               end_date))
-            #return False, error_message
 
-        min_threshold_rows = nrows * config["FRACTION_ROWS"]
+
+        min_threshold_rows = np.ceil(nrows * config["FRACTION_ROWS"])
         usable_station = []
         for key, value in k_stations_data.items():
             if len(value) > min_threshold_rows:
@@ -123,8 +126,6 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
         if len(usable_station) < config["MIN_STATION"]:
             raise ValueError("The number of usable station {} is lower than the minimum required {}".format(len(usable_station),
                                                                                                             config['MIN_STATION']))
-
-
         error_message['message'] = "There are {} available stations to use".format(k_stations_data.keys())
 
         return True, error_message
@@ -138,6 +139,32 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
 
 
     # return target_station_data, k_stations_data
+def check_scoring(data_source, target_station, variable, start_date, end_date,
+                  config, k_stations):
+    """
+    Validation operation for scoring
+    Args:
+        station:
+        variable:
+        start_date:
+        end_date:
+
+    Returns:
+
+    """
+    error_message = {}
+    try:
+       flag, error = check_for_training(data_source, target_station, variable, start_date, end_date, config, k_stations)
+       return flag, error
+
+    except ValueError as ex:
+        error_message["message"] = ex.message
+        print (ex.message)
+        error_message["parameters"] = {'station': target_station, 'variable': variable,
+                                       'startDate': start_date, 'endDate': end_date, 'config': config}
+        logger.error(ex.message + ",{}, {},{},{}".format(target_station, variable, start_date, end_date))
+        return False, error_message
+
 
 if __name__ == '__main__':
     target_station, variable = "TA00021", RAIN

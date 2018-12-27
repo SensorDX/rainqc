@@ -30,7 +30,8 @@ VIEWS = ['PairwiseView']
 MODELS = ['MixLinearModel']
 VERSION = 0.1
 WAIT_TIME_THRESHOLD = 72
-
+training_config = {"radius": RADIUS, "MAX_K": MAX_K, "FRACTION_ROWS": 0.5,
+                   "MIN_STATION": 2}  # later load from config file
 @app.route('/<station>')
 @app.route('/')
 def main(station=None):
@@ -136,7 +137,7 @@ def train(station):
         end_date = "2016-12-31"
     if weather_variable is None:
         weather_variable = RAIN
-    training_config = {"radius":RADIUS, "MAX_K":MAX_K, "FRACTION_ROWS":0.5, "MIN_STATION":2} #later load from config file
+
     check_station, err = check_for_training(data_source=data_source, target_station=station, variable=weather_variable,
                                        start_date=start_date, end_date=end_date, config=training_config)
     if not check_station:
@@ -145,7 +146,8 @@ def train(station):
     fitted, train_parameters = train_station(station, weather_variable, start_date, end_date)
 
     if save:
-        model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
+       # Save model, commented is to save as file.
+       # model_name = os.path.join(MODEL_DIR, station + weather_variable + "v00.pk")
        # joblib.dump(fitted.save(), open(model_name, 'w'))
         save_model(fitted, train_parameters)
     return render_template('training.html', stationlist=fitted.k_stations, target_station=station, save=save,
@@ -171,11 +173,22 @@ def train_station(station, weather_variable, start_date, end_date):
     train_parameters = {'version': VERSION, 'start_date': start_date, 'end_date': end_date,
                         'weather_variable': weather_variable,
                         'radius': RADIUS, 'k': len(fitted.k_stations), 'views': VIEWS, 'models': MODELS,
-                        'station': station,
-                        'training_date': datetime.utcnow().strftime('%Y-%m-%d')}
+                        'station': station, 'k_stations':fitted.k_stations,
+                        'training_date': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
     return fitted, train_parameters
 
+
 def train_all(data_source, start_date, end_date):
+    """
+    Batch training for all active stations.
+    Args:
+        data_source:
+        start_date:
+        end_date:
+
+    Returns:
+
+    """
     variable = RAIN
     config = {"radius": 100, "MAX_K": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
     threshold_waiting_hour = 72
@@ -204,6 +217,38 @@ def train_all(data_source, start_date, end_date):
     # save to json
     json.dump(trained_station, open(ROOT_DIR+'app/asset/train_stat.json','w'))
 
+# Delete operation.
+@app.route('/wipe', methods=['GET'])
+#@app.route('/wipe/<station>')
+def wipe():
+    try:
+        shutil.rmtree(MODEL_DIR)
+        os.makedirs(MODEL_DIR)
+        query = {}
+        station = request.args.get('station', type=str)
+        _id = request.args.get('_id', type=str)
+        if station is not None:
+            query = {'station': station} #, 'weather_variable': variable, 'version': version}
+            mongo.db.model.delete_many(query)
+            app.logger.info('Models {} wiped'.format(query))
+            message = "All model for station {} deleted".format(station)
+        elif _id:
+            query = {'_id': ObjectId(_id)}
+            row = mongo.db.model.find_one(query)
+            mongo.db.model.delete_one(query)
+            app.logger.info('Models {} wiped'.format(query))
+            message = "Model with id {} of station {} deleted ".format(_id, row['station'])
+        else:
+            app.logger.info('Models {} wiped'.format(query))
+            mongo.db.model.delete_many(query)
+            message = " All models in db are deleted"
+        #return redirect('/')
+        return render_template('infopage.html', title="Delete model", message=message)
+    except Exception as e:
+        app.logger.error('An error occured {}'.format(str(e)))
+        return 'Could not remove and recreate the model directory {}'.format(str(e))
+
+## Scoring operations.
 
 @app.route('/score/<target_station>')
 def score(target_station):
@@ -219,15 +264,27 @@ def score(target_station):
         save_score = request.args.get('save',type=bool)
         start_date = request.args.get('startDate', type=str) # "2016-01-01"
         end_date = request.args.get('endDate', type=str) #"2016-09-30"
-        weather_variable = None #request.args.get('variable',type=str) #RAIN
-        date_range = pd.date_range(start_date, end_date, freq='1D')
+
+        if (start_date is None) or (end_date is None):
+            return render_template("infopage.html", title="Error in scoring", message="Either start data or end date is missing")
+
+        weather_variable = request.args.get('variable',type=str) #RAIN
         if weather_variable is None:
             weather_variable = RAIN
+
+        date_range = pd.date_range(start=start_date, end=end_date, freq='1D')
 
         query = {'station': target_station, 'weather_variable': weather_variable}
         model_config = mongo.db.model.find_one(query)
         if model_config is None:
             raise ValueError("Couldn't find the model")
+
+        fitted, error = check_for_training(data_source=data_source, target_station=target_station,
+                                           variable=weather_variable,
+                                           start_date=start_date, end_date=end_date, config=training_config,
+                                           k_stations=model_config['k_stations'])
+        if not fitted:
+            return render_template("errorpage.html", error=error)
 
         rqc_pk = pickle.loads(model_config['model'])  # joblib.load(open(model_name,'r'))
         rqc = MainRQC.load(rqc_pk)
@@ -247,9 +304,6 @@ def score(target_station):
             message = "Scores saved"
             return render_template('score_result.html',title=target_station, score_result=score_result['scores'], message=message,
                                    threshold=threshold)
-            #return jsonify({'message':message,'scores':scores})
-        #graph_data = out_plot(scores, date_range, target_station)
-        #return render_template('scores.html', title=target_station, line_chart=graph_data, message=message)
     except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
@@ -291,31 +345,6 @@ def evaluate(station):
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
 
-
-
-@app.route('/wipe/<station>')
-@app.route('/wipe', methods=['GET'])
-def wipe(station=None):
-    try:
-        shutil.rmtree(MODEL_DIR)
-        os.makedirs(MODEL_DIR)
-        query = {}
-        if station is not None:
-            station = request.args.get('station', type=str)
-            variable = request.args.get('weather_variable', type=str)
-            version = request.args.get('version',type=str)
-            query = {'station': station} #, 'weather_variable': variable, 'version': version}
-        mongo.db.model.delete_many(query)
-        app.logger.info('Models {} wiped'.format(query))
-        print('Models wiped')
-        return redirect('/')
-
-    except Exception as e:
-        app.logger.error('An error occured {}'.format(str(e)))
-        return 'Could not remove and recreate the model directory {}'.format(str(e))
-
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description = "RQC command line arguments")
     parser.add_argument('-m', '--mode', help="Mode either production or dev")
@@ -339,7 +368,7 @@ if __name__ == '__main__':
 
     DEBUG = True
     args = parse_args()
-    args.datasource = 'TahmoAPILocal'
+    #args.datasource = 'TahmoAPILocal'
     #args.mode = 'production'
 
     if args.port is not None:
@@ -353,7 +382,7 @@ if __name__ == '__main__':
     if args.datasource is not None:
         data_source = DataSourceFactory.get_model(args.datasource)
     else:
-        data_source = DataSourceFactory.get_model('TahmoAPILocal')
+        data_source = DataSourceFactory.get_model('FakeTahmo')
 
     db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"), "r"))["mongodb"]
     app.config["MONGO_URI"] = db_config[mode]  # could be

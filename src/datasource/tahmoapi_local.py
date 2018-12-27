@@ -30,7 +30,8 @@ def json_to_df(json_station_data, weather_variable=RAIN, group='D', filter_year=
         df = df[df.date.dt.year == filter_year]
     if group:
         df = df.groupby(df.date.dt.dayofyear).agg({weather_variable: variable_aggregation[weather_variable],
-                                                   "date": np.max})  # apply(lambda x: np.sum(x[weather_variable]))  ## take max readings of the hour.
+                                                   "date": np.max})  # apply(lambda x: np.sum(x[weather_variable]))
+        ### take max readings of the hour.
     return df
 
 
@@ -57,7 +58,8 @@ class TahmoAPILocal(DataSource):
         all_stations = self.get_stations()["stations"]
         return all_stations
         #return [stn for stn in all_stations]
-
+    def exists(self, station):
+        return station in self.stations()
     def __get_request(self, url, params={}):
         try:
             response = requests.request("GET", url, headers=self.header,
@@ -128,7 +130,7 @@ class TahmoAPILocal(DataSource):
 
         if len(station_list) < 1:
             raise ValueError("The station list is empty")
-        all_stations = self.online_station(active_day_range=active_day_range, threshold=threshold)
+        all_stations = self.online_stations(active_day_range=active_day_range, threshold=threshold)
         return np.intersect1d(all_stations, station_list)
 
         # current_active_stations = []
@@ -170,7 +172,7 @@ class TahmoAPILocal(DataSource):
             return None
         else:
             df = json_to_df(json_data, weather_variable=weather_variable, group='D')
-        #print df.tail(5)
+
         df = df[weather_variable]
         if self.keepdim:
             return df.values.reshape(-1,1)
@@ -235,7 +237,7 @@ if __name__ == '__main__':
     ll = ff.get_data('TA00306', start_date='2017-01-01', end_date='2017-12-31', data_format='dataframe')#, weather_variable=RAIN)
     print (ll.tail(5))
     #print ff.get
-    available = ff.online_station()
+    available = ff.online_stations()
     nrb = ff.nearby_stations('TA00139',showdist=True)
     print (np.intersect1d(available, nrb.keys()))
     #sbn.plt.show()

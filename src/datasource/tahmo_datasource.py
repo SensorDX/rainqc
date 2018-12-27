@@ -148,8 +148,8 @@ class TahmoDataSource(DataSource):
 
 
     def daily_data(self, station_name, weather_variable, start_date, end_date):
-        """
 
+        """
         Args:
             station_name (str) : station name to query
             weather_variable (str): Weather variable name. This should match to the variable name in the database.
