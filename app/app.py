@@ -32,6 +32,7 @@ VERSION = 0.1
 WAIT_TIME_THRESHOLD = 72
 training_config = {"radius": RADIUS, "MAX_K": MAX_K, "FRACTION_ROWS": 0.5,
                    "MIN_STATION": 2}  # later load from config file
+
 @app.route('/<station>')
 @app.route('/')
 def main(station=None):
@@ -91,18 +92,15 @@ def fitted_detail():
                                           )
         metric_result, grp_eval= evaluate_groups(group_data, scores)
         graphs = {'point':{}, 'group':{}}
-
-        graphs['point']['ap'] = build_metric_graph(pred=scores, lbl=grp_eval['label'], plt_type='ap')
-        graphs['point']['auc'] = build_metric_graph(pred=scores, lbl=grp_eval['label'], plt_type='auc')
-
-        graphs['group']['ap'] = build_metric_graph(pred=group_data['gp_score'], lbl=grp_eval['label'], plt_type='ap')
-        graphs['group']['auc'] = build_metric_graph(pred=group_data['gp_score'], lbl=grp_eval['label'], plt_type='auc')
+        # Matplotlib need to be installed on the bluemix to work correctly.
+        # graphs['point']['ap'] = build_metric_graph(pred=scores, lbl=grp_eval['label'], plt_type='ap')
+        # graphs['point']['auc'] = build_metric_graph(pred=scores, lbl=grp_eval['label'], plt_type='auc')
+        #
+        # graphs['group']['ap'] = build_metric_graph(pred=group_data['gp_score'], lbl=grp_eval['label'], plt_type='ap')
+        # graphs['group']['auc'] = build_metric_graph(pred=group_data['gp_score'], lbl=grp_eval['label'], plt_type='auc')
 
         date_range = pd.date_range(model_config['start_date'], model_config['end_date'], freq='1D')
 
-        #data = rqc.data_source.daily_data(targ)
-        # raw_data = data_source.daily_data(model_config['station'], weather_variable=RAIN,
-        #                                   start_date=model_config['start_date'], end_date=model_config['end_date']).reshape(-1)
         raw_data = group_data['data'].reshape(-1)
         flag_data = group_data['label']
         graph_data = out_plot(raw_data, date_range, model_config['station'],flag_data=flag_data)
@@ -215,38 +213,7 @@ def train_all(data_source, start_date, end_date):
 
 
     # save to json
-    json.dump(trained_station, open(ROOT_DIR+'app/asset/train_stat.json','w'))
-
-# Delete operation.
-@app.route('/wipe', methods=['GET'])
-#@app.route('/wipe/<station>')
-def wipe():
-    try:
-        shutil.rmtree(MODEL_DIR)
-        os.makedirs(MODEL_DIR)
-        query = {}
-        station = request.args.get('station', type=str)
-        _id = request.args.get('_id', type=str)
-        if station is not None:
-            query = {'station': station} #, 'weather_variable': variable, 'version': version}
-            mongo.db.model.delete_many(query)
-            app.logger.info('Models {} wiped'.format(query))
-            message = "All model for station {} deleted".format(station)
-        elif _id:
-            query = {'_id': ObjectId(_id)}
-            row = mongo.db.model.find_one(query)
-            mongo.db.model.delete_one(query)
-            app.logger.info('Models {} wiped'.format(query))
-            message = "Model with id {} of station {} deleted ".format(_id, row['station'])
-        else:
-            app.logger.info('Models {} wiped'.format(query))
-            mongo.db.model.delete_many(query)
-            message = " All models in db are deleted"
-        #return redirect('/')
-        return render_template('infopage.html', title="Delete model", message=message)
-    except Exception as e:
-        app.logger.error('An error occured {}'.format(str(e)))
-        return 'Could not remove and recreate the model directory {}'.format(str(e))
+    json.dump(trained_station, open(ROOT_DIR+'/app/asset/train_stat.json','w'))
 
 ## Scoring operations.
 
@@ -345,6 +312,38 @@ def evaluate(station):
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
 
 
+# Delete operation.
+@app.route('/wipe', methods=['GET'])
+#@app.route('/wipe/<station>')
+def wipe():
+    try:
+        #shutil.rmtree(MODEL_DIR)
+        #os.makedirs(MODEL_DIR)
+        query = {}
+        station = request.args.get('station', type=str)
+        _id = request.args.get('_id', type=str)
+        if station is not None:
+            query = {'station': station} #, 'weather_variable': variable, 'version': version}
+            mongo.db.model.delete_many(query)
+            app.logger.info('Models {} wiped'.format(query))
+            message = "All model for station {} deleted".format(station)
+        elif _id:
+            query = {'_id': ObjectId(_id)}
+            row = mongo.db.model.find_one(query)
+            mongo.db.model.delete_one(query)
+            app.logger.info('Models {} wiped'.format(query))
+            message = "Model with id {} of station {} deleted ".format(_id, row['station'])
+        else:
+            app.logger.info('Models {} wiped'.format(query))
+            mongo.db.model.delete_many(query)
+            message = " All models in db are deleted"
+
+        return render_template('infopage.html', title="Delete model", message=message)
+    except Exception as e:
+        app.logger.error('An error occured {}'.format(str(e)))
+        return 'Could not remove and recreate the model directory {}'.format(str(e))
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description = "RQC command line arguments")
     parser.add_argument('-m', '--mode', help="Mode either production or dev")
@@ -369,7 +368,7 @@ if __name__ == '__main__':
     DEBUG = True
     args = parse_args()
     #args.datasource = 'TahmoAPILocal'
-    #args.mode = 'production'
+    args.mode = 'production'
 
     if args.port is not None:
         port = int(args.port)

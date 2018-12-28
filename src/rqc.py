@@ -319,4 +319,3 @@ class MainRQC(object):
         rqc.fitted = True
         return rqc
 
-#TODO: Error handling with the src parameters.

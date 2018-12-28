@@ -11,12 +11,12 @@ class FakeTahmo(DataSource):
     def get_data(self, station_name, start_date, end_date, data_format="json"):
         pass
 
-    def __init__(self, local_data_source="localdatasource/dataset/tahmostation2016.csv",
-                 nearby_station="localdatasource/nearest_stations.csv"):
+    def __init__(self, local_data_source="tahmostation2016.csv",
+                 nearby_station="nearest_stations.csv"):
         super(FakeTahmo, self).__init__()
-        self.local_data_source = os.path.join(ROOT_DIR, local_data_source)
+        self.local_data_source = os.path.join(ROOT_DIR,"localdatasource/dataset/", local_data_source)
         self.data = pd.read_csv(self.local_data_source)
-        self.nearby_station_file = os.path.join(ROOT_DIR, nearby_station)
+        self.nearby_station_file = os.path.join(ROOT_DIR,"localdatasource/", nearby_station)
         date_range = pd.date_range(start='2016-01-01', end="2016-12-31", freq='1D')
         self.data.index = date_range
 
@@ -58,7 +58,8 @@ class FakeTahmo(DataSource):
         return self.data.columns.tolist()
 
     def to_json(self):
-        json_config = {"local_data_source": self.local_data_source, "nearby_station_file": self.nearby_station_file}
+        json_config = {"local_data_source": os.path.basename(self.local_data_source),
+                       "nearby_station_file": os.path.basename(self.nearby_station_file)}
         return json_config
 
     @classmethod

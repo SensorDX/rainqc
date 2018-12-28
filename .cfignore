@@ -4,3 +4,5 @@ log/*
 notebook/
 .gitignore
 .git/
+*.log
+*.pdf

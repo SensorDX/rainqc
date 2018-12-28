@@ -17,14 +17,14 @@ def roc_metric(pred, obs, plot=False):
         plt.legend(loc='best')
         return plt
     return round(auc_score,3)
-def plot_pr_recall(pr, recall, plt):
-    plt.plot(recall, pr, label='pr curve')
-    plt.ylabel("pr")
-    plt.xlabel("recall")
-    plt.plot(range(0, 2), range(0, 2), '-r')
-    #plt.text(0.6, 0.2, "auc=" + str(auc_score))
-    plt.legend(loc='best')
-    return plt
+# def plot_pr_recall(pr, recall, plt):
+#     plt.plot(recall, pr, label='pr curve')
+#     plt.ylabel("pr")
+#     plt.xlabel("recall")
+#     plt.plot(range(0, 2), range(0, 2), '-r')
+#     #plt.text(0.6, 0.2, "auc=" + str(auc_score))
+#     plt.legend(loc='best')
+#     return plt
 
 
 def precision_recall(pred, obs, plot=False):
