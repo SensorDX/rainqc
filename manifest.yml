@@ -2,6 +2,11 @@
 applications:
  - name: tahmorqc
    random-route: true
+   buildpack: python_buildpack
    memory: 512M
    timeout: 80
+   env:
+       env_type: production
+
+
 

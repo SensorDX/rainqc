@@ -368,7 +368,7 @@ if __name__ == '__main__':
     DEBUG = True
     args = parse_args()
     #args.datasource = 'TahmoAPILocal'
-    args.mode = 'production'
+    #args.mode = 'production'
 
     if args.port is not None:
         port = int(args.port)
