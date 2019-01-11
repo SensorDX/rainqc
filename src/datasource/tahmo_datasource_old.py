@@ -12,7 +12,8 @@ from definition import *
 from definition import ROOT_DIR
 from src.common import haversine_distance, average_angular
 
-variable_aggregation = {RAIN:np.sum, TEMP:np.mean, WINDR:average_angular, REL:np.mean}
+variable_aggregation = {RAIN: np.sum, TEMP: np.mean, WINDR:average_angular, REL: np.mean}
+
 
 def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=None):
     rows = json_station_data["timeseries"][weather_variable]
@@ -30,10 +31,10 @@ def json_to_df(json_station_data, weather_variable='pr', group='D', filter_year=
     return df
 
 
-class TahmoDataSource(DataSource):
+class TahmoDataSourceOld(DataSource):
 
     def __init__(self, nearby_station_location="nearest_station.csv", keepdim=True):
-        super(TahmoDataSource, self).__init__()
+        super(TahmoDataSourceOld, self).__init__()
         # Later will move to config.
         config_path = os.path.join(ROOT_DIR,'config/config.json')
         if not os.path.exists(config_path):
@@ -45,13 +46,9 @@ class TahmoDataSource(DataSource):
         self.cm_url = tahmo_connection["cm_url"]
         self.nearby_station_file = os.path.join(ROOT_DIR,"config/"+tahmo_connection["nearby_station"])
         self.station_url = tahmo_connection["station_url"]
-
-
-
         self.keepdim  = keepdim
         if not os.path.exists(self.nearby_station_file):
             self.compute_nearest_stations()
-
     def stations(self):
         all_stations = self.get_stations()["stations"]
         return all_stations
@@ -98,7 +95,7 @@ class TahmoDataSource(DataSource):
         station_list = self.__get_request(url=self.station_url)
         return station_list.json()
 
-    def online_stations(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
+    def online_station(self, active_day_range=datetime.now(tz.tzutc()), threshold=24):
 
         all_stations = self.stations()
         current_active_stations = []
@@ -222,13 +219,13 @@ class TahmoDataSource(DataSource):
 
     @classmethod
     def from_json(cls, json_config):
-        data_source = TahmoDataSource()
+        data_source = TahmoDataSourceOld()
         return data_source
 
 
 if __name__ == '__main__':
-    ff = TahmoDataSource()
+    ff = TahmoDataSourceOld()
     #print ff.stations()
     print (ff.daily_data('TA00021',start_date='2017-01-01',end_date='2017-03-01', weather_variable=RAIN))
-    print (ff.online_stations(threshold=72))
+    print (ff.online_station( threshold=72))
     #print ff.active_stations(['TA00031'])

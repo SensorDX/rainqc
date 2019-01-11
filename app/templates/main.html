@@ -1,6 +1,6 @@
 <!doctype html>
 <html>
-<title>Station management</title>
+<title>Station management {{ title }}</title>
 <style>
 body {
   margin: 40px;
@@ -24,10 +24,12 @@ body {
 
 </style>
 <body>
-<a href="/trained">Trained models</a> | <a href="/">Main</a>
+<a href="/models">Trained models</a> | <a href="/">Main</a>
 <div class="wrapper">
   <div class="box a">
+
 <h3> List of available stations. </h3>
+ {{ title }}
  <ul id="navigation">
     {% for station in all_stations %}
      {% if station['online']==True %}

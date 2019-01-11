@@ -1,4 +1,3 @@
-
 import os,sys ,shutil, pickle
 import time
 from datetime import datetime
@@ -19,19 +18,22 @@ from flask_pymongo import PyMongo,ObjectId
 from definition import ROOT_DIR
 import json
 from graph import build_graph, out_plot, build_metric_graph
-from training_operation import check_for_training
+from training_operation import check_for_training, score_operation
+
 app = Flask(__name__)
 
+app_config = json.load(open(ROOT_DIR+'/config/app.json','r'))
 # Parameters
-RADIUS = 100
-MAX_K = 5
+RADIUS = app_config["train"]["radius"] #100
+MAX_K = app_config["train"]["max_k"]
 WEATHER_VARIABLE = RAIN
-VIEWS = ['PairwiseView']
-MODELS = ['MixLinearModel']
-VERSION = 0.1
-WAIT_TIME_THRESHOLD = 72
-training_config = {"radius": RADIUS, "MAX_K": MAX_K, "FRACTION_ROWS": 0.5,
-                   "MIN_STATION": 2}  # later load from config file
+VIEWS = app_config['train']['views'] #['PairwiseView']
+MODELS = app_config['train']['models'] #['MixLinearModel']
+VERSION = app_config["version"]
+WAIT_TIME_THRESHOLD = app_config["train"]["WAIT_TIME_THRESHOLD"]
+training_config = app_config["train"]
+#{"radius": RADIUS, "MAX_K": MAX_K, "FRACTION_ROWS": 0.5,
+ #                  "MIN_STATION": 2}  # later load from config file
 
 @app.route('/<station>')
 @app.route('/')
@@ -46,29 +48,30 @@ def main(station=None):
             stn['online'] = True
         else:
             stn['online'] = False
+    # check active--fitted stations.
+    score_operation(data_source, '2016-03-09', '2016-12-30')
     #all_stations = sorted(all_stations.items(), key=lambda key: key['online'])
-    #print station_status
-    return render_template('main.html', all_stations=all_stations, save=True)
+    title = "Running under {} mode using {} data source".format(mode, data_source.__name__)
+    return render_template('main.html', all_stations=all_stations, save=True, title=title)
 
 
-@app.route('/trained')
-def trained_model():
+@app.route('/models')
+def trained_models():
     """
-    Retrieve trained models from the db and display it.
+    Retrieve all trained active models from the database
     Returns:
 
     """
+    selector = {'version': 1, 'start_date': 1, 'end_date': 1,
+             'weather_variable': 1, 'radius': 1,
+             'k': 1, 'views': 1, 'station': 1, 'training_date':1, 'k_stations':1}
+    query = {} #{'training_date':max()}
+    list_trained_models  = data_source.fitted_stations(query, selector) #mongo.db['model'].find(query, selector)
+    list_trained_models = [ m for m in list_trained_models]
+    return render_template("trained_model.html", trained_models=list_trained_models)
 
-    query = {'version': 1, 'start_date': 1, 'end_date': 1,
-                        'weather_variable': 1,
-                        'radius': 1, 'k': 1, 'views': 1, 'station': 1, 'training_date':1}
-
-    trained_models  = mongo.db.model.find({}, query)
-    trained_models = [ m for m in trained_models]
-    return render_template("trained_model.html", trained_models=trained_models)
-
-@app.route('/fitted')
-def fitted_detail():
+@app.route('/model')
+def model_detail():
     """
     Display fitted parameter for the trained model.
     Returns:
@@ -78,9 +81,9 @@ def fitted_detail():
 
         _id = request.args.get('_id')
         app.logger.info(_id)
-        query = {'_id': ObjectId(_id)}
-        model_config = mongo.db.model.find_one(query)  # type: object
-
+        query, selector = {'_id': ObjectId(_id)}, {}
+        # model_config = mongo.db.model.find_one(query)  # type: object
+        model_config = data_source.get_model(query=query, selector=selector)
         if model_config is None:
             app.logger.error("Couldn't find the model {}", model_config)
             raise ValueError("Couldn't find the model")
@@ -188,8 +191,8 @@ def train_all(data_source, start_date, end_date):
 
     """
     variable = RAIN
-    config = {"radius": 100, "MAX_K": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
-    threshold_waiting_hour = 72
+    config = training_config #{"radius": 100, "MAX_K": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
+    threshold_waiting_hour = training_config["WAIT_TIME_THRESHOLD"]
     all_stations = data_source.online_stations(threshold=threshold_waiting_hour) #, active_day_range=end_date)
     trained_station = {}
 
@@ -243,6 +246,7 @@ def score(target_station):
 
         query = {'station': target_station, 'weather_variable': weather_variable}
         model_config = mongo.db.model.find_one(query)
+
         if model_config is None:
             raise ValueError("Couldn't find the model")
 
@@ -258,7 +262,7 @@ def score(target_station):
         result = rqc.score(start_date, end_date)
         # try plot.
         scores = result['MixLinearModel'].reshape(-1).tolist()
-        threshold = np.quantile(scores, 0.95)
+        threshold = np.quantile(scores, float(app_config["score"]["quantile"]))
 
         if DEBUG:
             app.logger.error(scores)
@@ -274,6 +278,12 @@ def score(target_station):
     except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
+
+
+
+
+
+
 @app.route('/evaluate/<station>')
 def evaluate(station):
     """
@@ -299,7 +309,6 @@ def evaluate(station):
         rqc = MainRQC.load(rqc_pk)
         scores, group_data = rqc.evaluate(start_date, end_date, target_station=station)
         metric_result = evaluate_groups(group_data, scores)
-        message = "metric sucss."
         return jsonify(metric_result)
         # Apply metric and plot result of it.
         # try plot.
@@ -310,7 +319,6 @@ def evaluate(station):
     except Exception as e:
         app.logger.error(str(e))
         return jsonify({'error': str(e), 'trace': traceback.format_exc()})
-
 
 # Delete operation.
 @app.route('/wipe', methods=['GET'])
@@ -367,7 +375,7 @@ if __name__ == '__main__':
 
     DEBUG = True
     args = parse_args()
-    #args.datasource = 'TahmoAPILocal'
+    #args.datasource = 'TahmoDataSource'
     #args.mode = 'production'
 
     if args.port is not None:
@@ -389,8 +397,9 @@ if __name__ == '__main__':
 
     mongo = PyMongo(app)
     app.logger.addHandler(handler)
+    data_source.set_modeldb(mongo)
     if args.trainall is not None:
-        os.environ['PYTHONPATH'] = '.'
+
 
         if args.startdate is not None or args.enddate is not None:
             train_all(data_source, start_date=args.startdate, end_date=args.enddate)
@@ -401,7 +410,6 @@ if __name__ == '__main__':
 
         # mode = "production" #"dev" #"dev" #" #could "dev" or "production"
         # Db configuration
-
 
         port = int(os.getenv('PORT', port))
 

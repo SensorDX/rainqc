@@ -1,0 +1,22 @@
+{
+  "version": 0.1,
+
+"train":{
+  "radius": 100,
+  "max_k": 5,
+  "WAIT_TIME_THRESHOLD": 72,
+  "FRACTION_ROWS": 0.5,
+  "MIN_STATION": 2,
+  "mode": "dev",
+  "weather_variable": "RAIN",
+  "start_date": "2016-01-01",
+  "end_date": "2016-12-30",
+  "models" : ["MixLinearModel"],
+  "views" : ["PairwiseView"]
+},
+  "score":{
+    "quantile": 0.95
+
+  }
+
+}
