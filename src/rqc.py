@@ -211,7 +211,7 @@ class MainRQC(object):
         #return evaluate_groups(group_data, score)
 
 
-    def score(self, start_date, end_date, target_station=None, evaluate_data=False):
+    def score(self, start_date, end_date, target_station=None, aggregate_score=True):
         """
         1. Fetch data from source
         2. Load nearby station, from saved source.
@@ -234,8 +234,12 @@ class MainRQC(object):
 
         target_station_data, k_station_data = self.fetch_data(start_date, end_date, k_station_list=self.k_stations,
                                                               target_station=target_station)
-        return self._score(k_station_data, target_station_data)
+        scores = self._score(k_station_data, target_station_data)
+        if aggregate_score:
+            return scores[scores.keys()[0]].reshape(-1) #assuming there is one modules, for multiple need some aggregation.
 
+        else:
+            return scores
     def _score(self, k_station_data, target_station_data):
         if len(self._views) < 1:
             return ValueError("No valid view definition found.")

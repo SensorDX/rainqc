@@ -16,9 +16,6 @@ check the database for which stations are trained for the last Y month.
 **Requirements**
 
  - There should be an available API from the bluemix to query.
-
-
-
  ## Scoring operations:
   - Check if there is any saved model before scoring operation, else return error or message that there is no saved models for
   the given station.
@@ -29,6 +26,8 @@ check the database for which stations are trained for the last Y month.
 
 # 1. Test operation for checking data availability.
 # 2.
+from logging.handlers import RotatingFileHandler
+
 from dateutil import parser
 from pytz import utc
 from src.common.utils import is_valid_date
@@ -40,12 +39,26 @@ from src.rqc import MainRQC
 import pandas as pd
 from definition import ROOT_DIR
 import json
+import datetime
+import os
+from collections import deque
 
-logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
-logging.basicConfig(filename="logfile.log",
-                    level=logging.DEBUG, format=logger_format,
-                    filemode='w')  # use filemode='a' for APPEND
+log_path = os.path.join(ROOT_DIR, "log/score_" + datetime.datetime.today().strftime("%Y-%m-%d") + ".log")
+# if not os.path.exists('log'):
+#    os.mkdir('log')
+# log_path = os.path.basename(log_path)
+
+handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
+handler.setLevel(logging.INFO)
+#
+# logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
+#
+# logging.basicConfig(level=logging.DEBUG, format=logger_format,
+#                     filemode='w', handler=handler)  # use filemode='a' for APPEND
+
+
 logger = logging.getLogger(__name__)
+logger.addHandler(handler)
 
 
 def train_all(data_source, variable, start_date, end_date, config):
@@ -144,9 +157,9 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
 
 
 # Scoring process for stations.
+
 """
  - At interval of time, pull station from pool of active stations with available trained model.
-
   - Retrieve all its metadata and associated data for it asynchronously.
   - If success:
      - saved the score of the station and write log as success withe timestamp of work.
@@ -154,46 +167,60 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
      - If all necessary data didn't get pulled, put it in waiting list and write reason to log.
      - If it don't have trained model, write erro to log and move to the next stations. Put the or mark the station
      with no fitted data.
-    - Next station
+     - Next station
  - fill the pool based on active stations and availability of stations.
 
 """
 
 import pickle
-def score_it(start_date, end_date, model_config): # model_config, training_config):
+
+
+def score_it(start_date, end_date, model_config):  # model_config, training_config):
 
     rqc_pk = pickle.loads(model_config['model'])
     rqc = MainRQC.load(rqc_pk)
     result = rqc.score(start_date, end_date)
-    scores = result['MixLinearModel'].reshape(-1).tolist()
-    return scores
-app_config = json.load(open(ROOT_DIR+'/config/app.json','r'))
+    #scores = result['MixLinearModel'].reshape(-1).tolist()
+    return result #scores
+
+
+app_config = json.load(open(ROOT_DIR + '/config/app.json', 'r'))
 training_config = app_config['train']
 
+
 def score_operation(data_source, start_date, end_date=None, weather_variable=RAIN):
+    assert isinstance(data_source, DataSource)
+    active_stations = data_source.online_stations()  # active_day_range=start_date)
+    logger.info("Score operation from {} to {} of variable {}".format(start_date, end_date, weather_variable))
 
-    assert  isinstance(data_source, DataSource)
-    active_stations = data_source.online_stations() #active_day_range=start_date)
+    select_fitted_stations = {'station': 1, '_id': 0}
+    all_fitted_stations = data_source.fitted_stations(query={}, selector=select_fitted_stations)
+    fitted_stations = [stn['station'] for stn in all_fitted_stations]
 
-    # list all fitted stations.
-    select_fitted_stations = {'station':1,'_id':0}
-    # query = {'station': target_station, 'weather_variable': weather_variable}
-    fitted_stations = [stn['station'] for stn in data_source.fitted_stations(selector=select_fitted_stations)]
-    #print(fitted_stations)
-    if len(fitted_stations)<1:
+    if len(fitted_stations) < 1:
         raise ValueError('There is no fitted model in the database')
 
     active_fitted_stations = set(fitted_stations).intersection(active_stations)
     non_score_stations = set(active_fitted_stations).difference(fitted_stations)
-    # put the non_score_stations on the pool non-scored stations..& check their date for their interval next time.
-    print("Active fitted stations {} -- non-score stations {}".format(active_fitted_stations, non_score_stations))
-    station_status = {"datetime":start_date, "end":end_date, "failure":[], "not_fitted":non_score_stations, "success":[]}
-    failure = []
+    logger.info("fitted stations, {}, active fitted station {}".format(fitted_stations, active_fitted_stations))
 
-    for station in active_fitted_stations:
-        # For each available fitted station. Score the
-        # check if it can be scored.
+    # put the non_score_stations on the pool non-scored stations..& check their date for their interval next time.
+    logger.info("Active fitted stations {} -- non-score stations {}".format(active_fitted_stations, non_score_stations))
+
+    station_status = {"start_date": start_date, "end_date": end_date, "failure": [], "not_fitted": list(non_score_stations),
+                      "success": []}
+    last_failed_log = data_source.last_failure_pool()
+
+    stations_que = deque(active_fitted_stations)
+
+    while len(stations_que)>0:
+
+    #for station in active_fitted_stations:
+        # For each available fitted station check if it can be scored.
+        station = stations_que.popleft()
         model_config = data_source.get_fitted_station(station)
+        left_over_operation = False
+
         if model_config is None:
             return "Station not yet fitted"
 
@@ -202,33 +229,64 @@ def score_operation(data_source, start_date, end_date=None, weather_variable=RAI
                                            start_date=start_date, end_date=end_date, config=training_config,
                                            k_stations=model_config['k_stations'])
         if not fitted:
-            return "Model not available"
-            # return render_template("errorpage.html", error=error)
+            logger.error(" Model for station {} not available".format(station))
+            continue
+         # Check if the station is in the failure mode from last run.
+        if station in last_failed_log['failure'] and not left_over_operation:
+            start_date = last_failed_log['start']
+            left_over_operation = True
+
         score_result = score_it(start_date, end_date, model_config)
-        print("Station {} can be scored".format(station))
-        if len(score_result)<1:
+        logger.info("Scoring for station {}".format(station))
+
+        if len(score_result) < 1:
+
             # Write failure log to db.
             # non_score_stations.add(station)
+            if left_over_operation:
+                stations_que.appendleft(station)
+                continue
             station_status['failure'].append(station)
+            logger.warning("Station {} can't be scored due to error".format(station))
         else:
+            # save score of the station.
+            data_source.save_scores(score_result, model_config, start_date, end_date)
             station_status['success'].append(station)
+            logger.info("Station {} scored with success".format(station))
+
             # Write success log to db.
     # Write non-trained stations:
+
+    data_source.save_score_pool(station_status)
     return station_status
 
 
-
-
+def mongo_config():
+    from bson.binary import Binary
+    from pymongo import MongoClient
+    import os
+    mode = "dev"
+    db_config = json.load(open(os.path.join(ROOT_DIR, "config/config.json"), "r"))["mongodb"]
+    mongo_uri = db_config[mode]  # could be
+    mongo = MongoClient(mongo_uri)
+    db = mongo['rainqc']
+    # print([x for x in db.model.find({},{'station':1})])
+    return db
 
 
 if __name__ == '__main__':
+    mongo_conn = mongo_config()
     target_station, variable = "TA00021", RAIN
-    start_date = "2016-01-01"
+    start_date = "2016-04-01"
     end_date = "2016-12-31"
 
     config = {"radius": 100, "max_k": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
     fk = FakeTahmo()
-    fk.set_modeldb()
+    fk.set_modeldb(mongo_conn)
+    # fitted = fk.fitted_stations(query={},selector={'station':1, '_id':0})
+    # for kk in fitted:
+    #     print(kk)
+
     # print (fk.stations())
     # print (check_for_training(fk, None, variable, start_date, end_date, config))
     # ## Check all training operations
@@ -236,5 +294,5 @@ if __name__ == '__main__':
     # for stn, value in training_error_metric.items():
     #     print (stn, value)
 
-    rs = score_operation(fk, start_date, end_date, variable)
+    rs = score_operation(fk, start_date, end_date)
     print(rs)

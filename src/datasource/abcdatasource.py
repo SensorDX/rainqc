@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from dateutil import tz
+import pandas as pd
 class DataSource(object):
     __metaclass__ = ABCMeta
 
@@ -50,7 +51,7 @@ class DataSource(object):
             if self.modeldb is None:
                 raise Exception("Modeldb is not configured.")
 
-            result = self.modeldb.db['model'].find(query, selector)  # query_fitted_stations)
+            result = self.modeldb['model'].find(query, selector)  # query_fitted_stations)
             if result is None:
                 raise ValueError("There are no fitted saved models.")
 
@@ -61,7 +62,7 @@ class DataSource(object):
 
     def get_model(self, query, selector=None):
         # query = {'station': target_station, 'weather_variable': weather_variable}
-        model_config = self.modeldb.db['model'].find_one(query)  # self.fitted_stations(selector={}, query=query) #self.modeldb.db['model'].find_one(query)
+        model_config = self.modeldb['model'].find_one(query)  # self.fitted_stations(selector={}, query=query) #self.modeldb.db['model'].find_one(query)
         if model_config is None:
             raise ValueError("Couldn't find the model")
         return model_config
@@ -70,7 +71,36 @@ class DataSource(object):
         assert station_name is not None
         query = {'station':station_name}
         return self.get_model(query, None)
+    def save_scores(self, scores, model_config, start_date, end_date):
+        if len(scores)<1:
+            return
+        try:
+            date_range = pd.date_range(start=start_date, end=end_date, freq='1D')
+            score_result = {'model_id': model_config['_id'], 'station': model_config['station'],
+                        'weather_variable': model_config['weather_variable'],
+                        'scores': {str(date): score for date, score in zip(date_range, scores)}
+                        }
 
+            self.modeldb['qc_score'].insert(score_result)
+
+            return True
+        except Exception as ex:
+            return ValueError(str(ex))
+    def save_score_pool(self, score_pool):
+        # Save score operation.
+        if score_pool is None:
+            return
+        self.modeldb['score_pool'].insert(score_pool)
+    def last_failure_pool(self):
+
+        #last_failure = self.modeldb['score_pool'].find_one({},{'_id':-1}) #find().sort({'_id': -1}).limit(1)
+        last_failure = self.modeldb['score_pool'].find().sort('_id',-1).limit(1)
+        last_failure = list(last_failure)
+        print(last_failure)
+        if len(last_failure)>0:
+            return last_failure[0]
+        else:
+            return [{"failure":[]}][0]
 class ModelDB(object):
 
 

@@ -261,7 +261,8 @@ def score(target_station):
         rqc = MainRQC.load(rqc_pk)
         result = rqc.score(start_date, end_date)
         # try plot.
-        scores = result['MixLinearModel'].reshape(-1).tolist()
+        #scores = result['MixLinearModel'].reshape(-1).tolist()
+        scores = result
         threshold = np.quantile(scores, float(app_config["score"]["quantile"]))
 
         if DEBUG:
@@ -365,10 +366,10 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    log_path = os.path.join(ROOT_DIR, "log/LOG_" + datetime.today().strftime("%Y-%m-%d") + ".log")
+    log_path = os.path.join(ROOT_DIR, "log/app_" + datetime.today().strftime("%Y-%m-%d") + ".log")
     #if not os.path.exists('log'):
     #    os.mkdir('log')
-    log_path = os.path.basename(log_path)
+    # log_path = os.path.basename(log_path)
 
     handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
     handler.setLevel(logging.INFO)
