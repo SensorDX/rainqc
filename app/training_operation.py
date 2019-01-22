@@ -31,39 +31,28 @@ from logging.handlers import RotatingFileHandler
 from dateutil import parser
 from pytz import utc
 from src.common.utils import is_valid_date
-from src.datasource import FakeTahmo, DataSource, TahmoDataSource
+from src.datasource import FakeTahmo, DataSource, TahmoDataSource, ModelDB
 from definition import RAIN
 import logging
 import numpy as np
 from src.rqc import MainRQC
-import pandas as pd
 from definition import ROOT_DIR
 import json
 import datetime
-import os
+import os, pickle
 from collections import deque
 
 log_path = os.path.join(ROOT_DIR, "log/score_" + datetime.datetime.today().strftime("%Y-%m-%d") + ".log")
-# if not os.path.exists('log'):
-#    os.mkdir('log')
-# log_path = os.path.basename(log_path)
-
 handler = RotatingFileHandler(log_path, maxBytes=10000, backupCount=1)
 handler.setLevel(logging.INFO)
-#
-# logger_format = "%(levelname)s [%(asctime)s]: %(message)s"
-#
-# logging.basicConfig(level=logging.DEBUG, format=logger_format,
-#                     filemode='w', handler=handler)  # use filemode='a' for APPEND
-
-
 logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 
+app_config = json.load(open(ROOT_DIR + '/config/app.json', 'r'))
+training_config = app_config['train']
+
 
 def train_all(data_source, variable, start_date, end_date, config):
-    ## Train all station anynchronously starting
-    ## Check if all can be trained.
     all_station = data_source.online_stations()
     trained_station = {}
     for stn in all_station:
@@ -172,20 +161,14 @@ def check_for_training(data_source, target_station, variable, start_date, end_da
 
 """
 
-import pickle
-
 
 def score_it(start_date, end_date, model_config):  # model_config, training_config):
 
     rqc_pk = pickle.loads(model_config['model'])
     rqc = MainRQC.load(rqc_pk)
-    result = rqc.score(start_date, end_date)
-    #scores = result['MixLinearModel'].reshape(-1).tolist()
-    return result #scores
+    scores = rqc.score(start_date, end_date)
+    return scores
 
-
-app_config = json.load(open(ROOT_DIR + '/config/app.json', 'r'))
-training_config = app_config['train']
 
 
 def score_operation(data_source, start_date, end_date=None, weather_variable=RAIN):
@@ -193,8 +176,8 @@ def score_operation(data_source, start_date, end_date=None, weather_variable=RAI
     active_stations = data_source.online_stations()  # active_day_range=start_date)
     logger.info("Score operation from {} to {} of variable {}".format(start_date, end_date, weather_variable))
 
-    select_fitted_stations = {'station': 1, '_id': 0}
-    all_fitted_stations = data_source.fitted_stations(query={}, selector=select_fitted_stations)
+
+    all_fitted_stations = data_source.fitted_stations()
     fitted_stations = [stn['station'] for stn in all_fitted_stations]
 
     if len(fitted_stations) < 1:
@@ -211,13 +194,11 @@ def score_operation(data_source, start_date, end_date=None, weather_variable=RAI
                       "success": []}
     last_failed_log = data_source.last_failure_pool()
 
-    stations_que = deque(active_fitted_stations)
+    stations_q = deque(active_fitted_stations)
 
-    while len(stations_que)>0:
+    while len(stations_q)>0:
 
-    #for station in active_fitted_stations:
-        # For each available fitted station check if it can be scored.
-        station = stations_que.popleft()
+        station = stations_q.popleft()
         model_config = data_source.get_fitted_station(station)
         left_over_operation = False
 
@@ -244,7 +225,7 @@ def score_operation(data_source, start_date, end_date=None, weather_variable=RAI
             # Write failure log to db.
             # non_score_stations.add(station)
             if left_over_operation:
-                stations_que.appendleft(station)
+                stations_q.appendleft(station)
                 continue
             station_status['failure'].append(station)
             logger.warning("Station {} can't be scored due to error".format(station))
@@ -282,7 +263,8 @@ if __name__ == '__main__':
 
     config = {"radius": 100, "max_k": 5, "FRACTION_ROWS": 0.5, "MIN_STATION": 3}
     fk = FakeTahmo()
-    fk.set_modeldb(mongo_conn)
+    mongo_db = ModelDB(mongo_conn)
+    fk.set_modeldb(mongo_db)
     # fitted = fk.fitted_stations(query={},selector={'station':1, '_id':0})
     # for kk in fitted:
     #     print(kk)
@@ -296,3 +278,660 @@ if __name__ == '__main__':
 
     rs = score_operation(fk, start_date, end_date)
     print(rs)
+    #mongo_db.delete(collection_name="score")
+## TODO: Add decision threshold function based on the score of the synthetic faults.
+## TODO: Add the datasource for the influxdb with the datasource from the real-data.
+## TODO: Derive the ll for the
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
